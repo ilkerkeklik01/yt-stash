@@ -20,6 +20,7 @@ from yt_dlp.utils import DownloadCancelled, YoutubeDLError
 from ytgrab.auth import AuthConfig
 from ytgrab.environment import Environment
 from ytgrab.errors import AuthConfigError, DownloadCancelledError, VideoError
+from ytgrab.i18n import t
 from ytgrab.models import ProgressEvent, Stage
 
 ProgressCallback = Callable[[ProgressEvent], None]
@@ -99,7 +100,7 @@ def load_auth_cookies(auth: AuthConfig, on_debug: LogCallback | None = None) -> 
             jar = load_cookies(cookie_file, browser, ydl)
         except CookieLoadError as exc:
             cause = exc.__context__ or exc
-            raise AuthConfigError(f"Could not load cookies ({auth.describe()}): {cause}") from exc
+            raise AuthConfigError(t("error.cookies_load", auth=auth.describe(), cause=cause)) from exc
 
     buffer = io.StringIO()
     jar.save(buffer)
@@ -168,7 +169,7 @@ class YtDlpClient:
             except YoutubeDLError as exc:
                 raise VideoError(str(exc)) from exc
         if not info:
-            raise VideoError(f"No playlist information returned for {url}")
+            raise VideoError(t("error.no_playlist_info", url=url))
         return info
 
     def extract_video(self, url: str) -> Mapping[str, Any]:
@@ -178,7 +179,7 @@ class YtDlpClient:
         except YoutubeDLError as exc:
             raise VideoError(str(exc)) from exc
         if not info:
-            raise VideoError(f"No video information returned for {url}")
+            raise VideoError(t("error.no_video_info", url=url))
         return info
 
     def download(

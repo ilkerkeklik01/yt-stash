@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import replace
 from importlib.metadata import version
+from pathlib import Path
 
 from rich.console import Console
 from rich.markup import escape
@@ -17,16 +19,12 @@ from ytgrab.app import App, RunOptions, environment_warnings
 from ytgrab.auth import AuthConfig
 from ytgrab.environment import Environment
 from ytgrab.errors import EXIT_INTERRUPTED, EXIT_OK, YtGrabError
+from ytgrab.i18n import LANGUAGES, get_language, set_language, t
 from ytgrab.models import Mode
 from ytgrab.prompts import GoBack, MenuAction, SessionPrompter
+from ytgrab.settings import save_setting
 
 AppFactory = Callable[[RunOptions], App]
-
-SIGN_IN_REASON = (
-    "Members-only, private and age-restricted videos need your signed-in YouTube account. "
-    "ytgrab reads the session cookies of your browser or of a cookies.txt file and keeps "
-    "them in memory only; nothing is saved."
-)
 
 _LINUX_HINTS = {
     "ffmpeg": "sudo apt install ffmpeg  (Fedora: sudo dnf install ffmpeg)",
@@ -47,26 +45,28 @@ def setup_table(environment: Environment, platform: str = sys.platform) -> Table
     table.add_column()
 
     if environment.ffmpeg_available:
-        table.add_row(
-            "ffmpeg", "[green]✔ found", "[dim]Merges HD video with audio, converts audio, embeds subtitles."
-        )
+        table.add_row("ffmpeg", f"[green]{t('setup.found')}", f"[dim]{t('setup.ffmpeg_desc')}")
     else:
-        table.add_row("ffmpeg", "[red]✘ missing", f"Install: [b]{hints['ffmpeg']}")
+        table.add_row("ffmpeg", f"[red]{t('setup.missing')}", t("setup.install", command=hints["ffmpeg"]))
     runtimes = ", ".join(environment.js_runtimes)
     if runtimes:
-        table.add_row("JavaScript", f"[green]✔ {runtimes}", "[dim]Unlocks most of YouTube's formats.")
+        table.add_row("JavaScript", f"[green]✔ {runtimes}", f"[dim]{t('setup.js_desc')}")
     else:
-        table.add_row("JavaScript", "[red]✘ missing", f"Install: [b]{hints['deno']}")
+        table.add_row("JavaScript", f"[red]{t('setup.missing')}", t("setup.install", command=hints["deno"]))
     table.add_row(
         "yt-dlp",
         version("yt-dlp"),
-        "[dim]If downloads suddenly fail, update it: [/]pipx upgrade ytgrab[dim] or [/]pip install -U yt-dlp",
+        t("setup.ytdlp_desc", pipx="pipx upgrade ytgrab", pip="pip install -U yt-dlp"),
     )
     return table
 
 
 class Session:
-    """Shows the main menu, runs an :class:`App` per choice and keeps the sign-in between runs."""
+    """Shows the main menu, runs an :class:`App` per choice and keeps the sign-in between runs.
+
+    ``help_text`` builds the command-line help in the current language. A language chosen in
+    the menu applies at once and is saved to ``settings_file`` (if given) for the next start.
+    """
 
     def __init__(
         self,
@@ -76,7 +76,8 @@ class Session:
         console: Console,
         environment: Environment,
         app_factory: AppFactory,
-        help_text: str,
+        help_text: Callable[[], str],
+        settings_file: Path | None = None,
     ) -> None:
         self._base = base_options
         self._prompter = prompter
@@ -84,11 +85,12 @@ class Session:
         self._env = environment
         self._app_factory = app_factory
         self._help_text = help_text
+        self._settings_file = settings_file
         self._auth = base_options.auth
 
     def run(self) -> int:
         """Loop until the user quits. Returns the exit code of the last download."""
-        self._console.print(f"[b]ytgrab[/] {__version__}  [dim]Download YouTube videos and playlists")
+        self._console.print(f"[b]ytgrab[/] {__version__}  [dim]{t('session.tagline')}")
         for warning in environment_warnings(self._env):
             self._console.print(warning)
 
@@ -110,7 +112,7 @@ class Session:
             except GoBack:
                 continue  # Esc before the download started: back to the main menu
             except YtGrabError as error:
-                self._console.print(f"[red]Error:[/] {escape(str(error))}")
+                self._console.print(t("cli.error", message=escape(str(error))))
                 exit_code = error.exit_code
             if exit_code == EXIT_INTERRUPTED or not self._ask_next():
                 return exit_code
@@ -124,23 +126,38 @@ class Session:
     def _show_information(self, action: MenuAction) -> bool:
         """Handle the entries that don't download anything. False for download entries."""
         if action is MenuAction.SETUP:
-            self._prompter.show_page("Setup", setup_table(self._env))
+            self._prompter.show_page(t("session.page_setup"), setup_table(self._env))
         elif action is MenuAction.HELP:
             # argparse already wrapped the text to the terminal width, and since Python 3.14
             # it colours it with ANSI codes, which from_ansi turns into styles.
-            help_text = Text.from_ansi(self._help_text, no_wrap=True, overflow="ignore")
-            self._prompter.show_page("Command-line options", help_text)
+            help_text = Text.from_ansi(self._help_text(), no_wrap=True, overflow="ignore")
+            self._prompter.show_page(t("session.page_help"), help_text)
         elif action is MenuAction.SIGN_IN:
             try:
-                self._auth = self._prompter.ask_auth(SIGN_IN_REASON) or AuthConfig()
+                self._auth = self._prompter.ask_auth(t("session.sign_in_reason")) or AuthConfig()
             except GoBack:
                 pass  # keep the current sign-in
             except YtGrabError as error:
                 self._console.print(f"[red]{escape(str(error))}")
-            self._console.print(f"[dim]Sign-in: {escape(self._auth.describe())}.")
+            self._console.print(f"[dim]{t('session.sign_in_now', auth=escape(self._auth.describe()))}")
+        elif action is MenuAction.LANGUAGE:
+            with suppress(GoBack):  # Esc keeps the current language
+                self._change_language(self._prompter.ask_language(get_language()))
         else:
             return False
         return True
+
+    def _change_language(self, code: str) -> None:
+        """Switch the language now (the next menu is drawn in it) and remember it for next time."""
+        set_language(code)
+        self._console.print(f"[dim]{t('session.language_now', name=LANGUAGES[code])}")
+        if self._settings_file is None:
+            return
+        try:
+            save_setting(self._settings_file, "language", code)
+        except OSError as exc:
+            reason = escape(exc.strerror or str(exc))
+            self._console.print(f"[yellow]{t('session.language_not_saved', reason=reason)}")
 
     def _ask_mode_and_urls(self) -> tuple[Mode, list[str]]:
         """Esc on the links returns to the mode question; Esc there leaves (:class:`GoBack`)."""

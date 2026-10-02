@@ -12,6 +12,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TaskProgre
 
 from ytgrab.downloader import JobResult, JobStatus
 from ytgrab.errors import VideoError
+from ytgrab.i18n import t
 from ytgrab.models import ProgressEvent, Stage, VideoInfo
 
 _TITLE_WIDTH = 42
@@ -32,15 +33,15 @@ def _format_eta(seconds: int | None) -> str:
 def describe_progress(event: ProgressEvent) -> str:
     """Human readable "12.3 MB/45.6 MB • 3.2 MB/s • ETA 00:12" text for an event."""
     if event.stage is Stage.PROCESSING:
-        return "merging / converting…"
+        return t("progress.processing")
     size = decimal(event.downloaded_bytes)
     if event.total_bytes:
         size += f"/{decimal(int(event.total_bytes))}"
-    parts = [f"{event.stage.value}: {size}"]
+    parts = [t("progress.stage", stage=t(f"stage.{event.stage.value}"), size=size)]
     if event.speed:
         parts.append(f"{decimal(int(event.speed))}/s")
     if event.eta is not None:
-        parts.append(f"ETA {_format_eta(event.eta)}")
+        parts.append(t("progress.eta", eta=_format_eta(event.eta)))
     return " • ".join(parts)
 
 
@@ -74,7 +75,7 @@ class ProbeProgress(_BaseProgress):
 
     def __init__(self, console: Console, total: int) -> None:
         super().__init__(console)
-        self._task = self._progress.add_task("Fetching video info", total=total, detail="")
+        self._task = self._progress.add_task(t("progress.fetching"), total=total, detail="")
 
     def advance(self, *_args: object) -> None:
         self._progress.advance(self._task)
@@ -90,7 +91,9 @@ class RichProgressReporter(_BaseProgress):
         self._tasks: dict[str, TaskID] = {}
         self._stages: dict[str, Stage] = {}
         self._overall = self._progress.add_task(
-            "[bold]Overall", total=total_jobs, detail=f"0/{total_jobs} videos"
+            f"[bold]{t('progress.overall')}",
+            total=total_jobs,
+            detail=t("progress.done", done=0, total=total_jobs),
         )
         self._total = total_jobs
         self._done = 0
@@ -98,7 +101,7 @@ class RichProgressReporter(_BaseProgress):
     def job_started(self, video: VideoInfo) -> None:
         with self._lock:
             self._tasks[video.id] = self._progress.add_task(
-                escape(shorten(video.title)), total=None, detail="starting…"
+                escape(shorten(video.title)), total=None, detail=t("progress.starting")
             )
 
     def job_progress(self, video: VideoInfo, event: ProgressEvent) -> None:
@@ -121,7 +124,7 @@ class RichProgressReporter(_BaseProgress):
     def job_retrying(self, video: VideoInfo, attempt: int, delay: float, error: VideoError) -> None:
         self._console.print(
             f"[yellow]↻ {escape(shorten(video.title))}: {escape(str(error))} "
-            f"— retrying in {delay:.0f}s (attempt {attempt + 1})"
+            f"{t('progress.retrying', delay=delay, attempt=attempt + 1)}"
         )
 
     def job_finished(self, result: JobResult) -> None:
@@ -132,7 +135,9 @@ class RichProgressReporter(_BaseProgress):
                 self._progress.remove_task(task)
             self._done += 1
             self._progress.update(
-                self._overall, completed=self._done, detail=f"{self._done}/{self._total} videos"
+                self._overall,
+                completed=self._done,
+                detail=t("progress.done", done=self._done, total=self._total),
             )
         self._console.print(_result_line(result))
 
@@ -143,7 +148,7 @@ def _result_line(result: JobResult) -> str:
         name = escape(result.path.name) if result.path else ""
         return f"[green]✔[/] {title} [dim]→ {name}"
     if result.status is JobStatus.SKIPPED:
-        return f"[cyan]•[/] {title} [dim](already downloaded)"
+        return f"[cyan]•[/] {title} [dim]{t('progress.already_downloaded')}"
     if result.status is JobStatus.CANCELLED:
-        return f"[yellow]■[/] {title} [dim](cancelled)"
+        return f"[yellow]■[/] {title} [dim]{t('progress.cancelled')}"
     return f"[red]✘[/] {title}: {escape(str(result.error))}"

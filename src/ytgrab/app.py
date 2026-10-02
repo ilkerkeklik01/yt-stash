@@ -28,6 +28,7 @@ from ytgrab.errors import (
 )
 from ytgrab.formats import QualitySpec, collect_quality_options, default_height, resolve_quality
 from ytgrab.gateway import LoadedCookies, MediaClient
+from ytgrab.i18n import t, tn
 from ytgrab.models import (
     AudioOnly,
     DownloadPlan,
@@ -42,35 +43,21 @@ from ytgrab.options import DEFAULT_CONTAINER, DownloadSettings, build_download_p
 from ytgrab.paths import default_download_dir, display_path, ensure_writable_directory, sanitize_component
 from ytgrab.probe import ProbeFailure, Prober, ProbeResult, playlist_from_info
 from ytgrab.progress import ProbeProgress, RichProgressReporter
-from ytgrab.prompts import GoBack, Prompter, ReviewAction, describe_selection, plural, render_quality_table
+from ytgrab.prompts import GoBack, Prompter, ReviewAction, describe_selection, render_quality_table
 from ytgrab.retry import RetryPolicy
 from ytgrab.urls import normalize_playlist_url, normalize_video_urls
 
 ClientFactory = Callable[[LoadedCookies | None], MediaClient]
 CookieLoader = Callable[[AuthConfig], LoadedCookies]
 
-AUTH_HINT = (
-    "Members-only, private and age-restricted videos need a signed-in YouTube account "
-    "(with an active membership for members-only videos). Pass --cookies-from-browser BROWSER "
-    "or --cookies FILE."
-)
-
 
 def environment_warnings(environment: Environment) -> list[str]:
     """Rich-markup warnings about missing external programs."""
     warnings = []
     if not environment.ffmpeg_available:
-        warnings.append(
-            "[yellow]⚠ ffmpeg was not found.[/] Without it, YouTube only offers single-file "
-            "formats (usually up to 360p), audio cannot be converted and subtitles cannot be "
-            "embedded. See the README for installation instructions."
-        )
+        warnings.append(t("app.warn_ffmpeg"))
     if not environment.js_runtimes:
-        warnings.append(
-            "[yellow]⚠ No JavaScript runtime (deno, node, bun or quickjs) was found.[/] "
-            "YouTube may then only offer a few low-quality formats. Installing deno is "
-            "recommended: https://deno.com"
-        )
+        warnings.append(t("app.warn_js"))
     return warnings
 
 
@@ -148,7 +135,7 @@ class App:
         probe = self._recover_probe_auth(self._probe(targets), targets)
         self._report_probe_failures(probe.failures)
         if not probe.videos:
-            self._console.print("[yellow]Nothing to download.")
+            self._console.print(f"[yellow]{t('app.nothing_to_download')}")
             return self._exit_code(DownloadReport(), probe.failures)
 
         if self._options.list_qualities:
@@ -158,7 +145,7 @@ class App:
 
         plan = self._review_plan(probe.videos, self._initial_plan(probe.videos, playlist), playlist)
         if plan is None:
-            self._console.print("Cancelled. Nothing was downloaded.")
+            self._console.print(t("cancelled"))
             return EXIT_OK
 
         output_dir = self._target_dir(plan.output_dir, playlist)
@@ -187,7 +174,7 @@ class App:
         raw = list(self._options.urls) or self._prompter.ask_urls(mode)
         if mode is Mode.PLAYLIST:
             if len(raw) != 1:
-                raise UsageError("Playlist mode takes exactly one playlist URL.")
+                raise UsageError(t("app.playlist_one_url"))
             return mode, [normalize_playlist_url(raw[0])]
         return mode, normalize_video_urls(raw)
 
@@ -197,12 +184,9 @@ class App:
         if auth.is_configured:
             cookies = self._cookie_loader(auth)
             if cookies.youtube_cookie_count == 0:
-                self._console.print(
-                    f"[yellow]⚠ No YouTube cookies found in {escape(auth.describe())}. "
-                    "Make sure you are signed in to YouTube there."
-                )
+                self._console.print(f"[yellow]{t('app.no_cookies', auth=escape(auth.describe()))}")
             else:
-                self._console.print(f"[dim]Using {escape(auth.describe())}.")
+                self._console.print(f"[dim]{t('app.using_auth', auth=escape(auth.describe()))}")
         self._connected_client = self._client_factory(cookies)
         self._auth = auth
 
@@ -211,7 +195,7 @@ class App:
         if not self._interactive:
             return False
         if self._auth.is_configured:
-            reason += f" The current {self._auth.describe()} did not grant access."
+            reason = t("app.auth_did_not_help", reason=reason, auth=self._auth.describe())
         while True:
             try:
                 auth = self._prompter.ask_auth(reason)
@@ -232,9 +216,7 @@ class App:
         if mode is Mode.VIDEO:
             return None, [ProbeTarget(url) for url in urls]
         playlist = self._fetch_playlist(urls[0])
-        self._console.print(
-            f"Playlist [b]{escape(playlist.title)}[/] contains {len(playlist.entries)} video(s)."
-        )
+        self._console.print(tn("app.playlist_contains", len(playlist.entries), title=escape(playlist.title)))
         return playlist, list(playlist.entries)
 
     def _fetch_playlist(self, url: str) -> PlaylistInfo:
@@ -245,13 +227,13 @@ class App:
             maybe_private = error.kind is ErrorKind.UNAVAILABLE and not self._auth.is_configured
             if error.kind is not ErrorKind.AUTH_REQUIRED and not maybe_private:
                 raise
-            if not self._reauthenticate(f"Cannot open this playlist ({error}). If it is private, sign in."):
+            if not self._reauthenticate(t("app.playlist_private", error=error)):
                 raise
             info = self._extract_playlist(url)
         return playlist_from_info(info, url)
 
     def _extract_playlist(self, url: str) -> Mapping[str, Any]:
-        with self._console.status("Fetching playlist…"):
+        with self._console.status(t("app.fetching_playlist")):
             return self._client.extract_playlist(url)
 
     def _probe(self, targets: Sequence[ProbeTarget]) -> ProbeResult:
@@ -260,9 +242,7 @@ class App:
 
     def _recover_probe_auth(self, probe: ProbeResult, targets: Sequence[ProbeTarget]) -> ProbeResult:
         needs_auth = probe.failures_of_kind(ErrorKind.AUTH_REQUIRED)
-        if not needs_auth or not self._reauthenticate(
-            f"{len(needs_auth)} video(s) require sign-in (members-only, private or age-restricted)."
-        ):
+        if not needs_auth or not self._reauthenticate(tn("app.videos_need_sign_in", len(needs_auth))):
             return probe
         retried = self._probe([failure.target for failure in needs_auth])
         remaining = ProbeResult(probe.videos, [f for f in probe.failures if f not in needs_auth])
@@ -272,10 +252,10 @@ class App:
         for failure in failures:
             self._console.print(
                 f"[red]✘[/] {escape(failure.label)}: {escape(str(failure.error))} "
-                f"[dim]({failure.error.kind.value})"
+                f"[dim]({failure.error.kind.label})"
             )
         if any(f.error.kind is ErrorKind.AUTH_REQUIRED for f in failures):
-            self._console.print(f"[dim]{AUTH_HINT}")
+            self._console.print(f"[dim]{t('app.auth_hint')}")
 
     # ------------------------------------------------------------------ choices
 
@@ -307,9 +287,7 @@ class App:
         options = collect_quality_options(videos)
         selection = resolve_quality(self._options.quality, options)
         if selection.height is not None and selection.height not in {o.height for o in options}:
-            self._console.print(
-                f"[yellow]{selection.height}p is not offered; the closest lower quality is used."
-            )
+            self._console.print(f"[yellow]{t('app.quality_not_offered', height=selection.height)}")
         return selection
 
     def _ask_selection(self, videos: Sequence[VideoInfo], current: Selection | None = None) -> Selection:
@@ -364,11 +342,14 @@ class App:
             action = prompter.review(plan, video_count=count, target_dir=target)
             if action is ReviewAction.START:
                 # The review menu disappears once answered; keep a record of what was started.
-                what = describe_selection(plan.selection)
-                self._console.print(
-                    f"\nDownloading [b]{plural(count, 'video')}[/] as [b]{what}[/] into "
-                    f"[b]{escape(display_path(target))}[/], {min(plan.jobs, count)} at a time."
+                started = t(
+                    "app.downloading",
+                    videos=tn("count.video", count),
+                    quality=describe_selection(plan.selection),
+                    path=escape(display_path(target)),
+                    jobs=min(plan.jobs, count),
                 )
+                self._console.print(f"\n{started}")
                 return plan
             if action is ReviewAction.CANCEL:
                 return None
@@ -408,12 +389,12 @@ class App:
             manager = DownloadManager(self._client, workers=workers, retry=self._retry, reporter=reporter)
             report = manager.run(jobs)
         if report.interrupted:
-            self._console.print("[yellow]Interrupted. Partial downloads are kept and resume next time.")
+            self._console.print(f"[yellow]{t('app.interrupted')}")
         return report
 
     def _recover_download_auth(self, report: DownloadReport, workers: int) -> DownloadReport:
         needs_auth = report.failures_of_kind(ErrorKind.AUTH_REQUIRED)
-        if not needs_auth or not self._reauthenticate(f"{len(needs_auth)} download(s) require sign-in."):
+        if not needs_auth or not self._reauthenticate(tn("app.downloads_need_sign_in", len(needs_auth))):
             return report
         retried = self._download([result.job for result in needs_auth], workers)
         by_id = {result.video.id: result for result in retried.results}
@@ -425,23 +406,21 @@ class App:
     ) -> None:
         counts = {status: len(report.with_status(status)) for status in JobStatus}
         table = Table.grid(padding=(0, 2))
-        table.add_row("[green]Downloaded", str(counts[JobStatus.COMPLETED]))
-        table.add_row("[cyan]Already present", str(counts[JobStatus.SKIPPED]))
+        table.add_row(f"[green]{t('app.summary_downloaded')}", str(counts[JobStatus.COMPLETED]))
+        table.add_row(f"[cyan]{t('app.summary_present')}", str(counts[JobStatus.SKIPPED]))
         if counts[JobStatus.CANCELLED]:
-            table.add_row("[yellow]Cancelled", str(counts[JobStatus.CANCELLED]))
+            table.add_row(f"[yellow]{t('app.summary_cancelled')}", str(counts[JobStatus.CANCELLED]))
         failed = counts[JobStatus.FAILED] + len(probe_failures)
-        table.add_row("[red]Failed" if failed else "Failed", str(failed))
+        table.add_row(f"[red]{t('app.summary_failed')}" if failed else t("app.summary_failed"), str(failed))
         self._console.print()
         self._console.print(table)
-        self._console.print(f"Saved to: [b]{escape(display_path(output_dir))}")
+        self._console.print(t("app.saved_to", path=escape(display_path(output_dir))))
         if report.failures_of_kind(ErrorKind.AUTH_REQUIRED):
-            self._console.print(f"[dim]{AUTH_HINT}")
+            self._console.print(f"[dim]{t('app.auth_hint')}")
 
     def _print_equivalent_command(self, mode: Mode, urls: Sequence[str], plan: DownloadPlan) -> None:
         """Teach the flags: the one-line command that repeats this run without questions."""
-        self._console.print("\n[dim]Next time, run this to skip the questions:")
+        self._console.print(f"\n[dim]{t('app.next_time')}")
         self._console.print(f"  {escape(equivalent_command(mode, urls, plan, self._auth))}", soft_wrap=True)
         if len(urls) > MAX_LISTED_URLS:
-            self._console.print(
-                "[dim]  Replace URL... with your links, or put them in a file: --from-file FILE"
-            )
+            self._console.print(f"[dim]  {t('app.replace_urls')}")

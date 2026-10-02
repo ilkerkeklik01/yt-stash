@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 from dataclasses import dataclass, field
 
 from rich.console import Console
@@ -11,6 +12,7 @@ from ytgrab.app import App, RunOptions
 from ytgrab.auth import AuthConfig, BrowserSpec
 from ytgrab.environment import Environment
 from ytgrab.errors import EXIT_INTERRUPTED, UsageError
+from ytgrab.i18n import get_language
 from ytgrab.models import Mode
 from ytgrab.prompts import GoBack, MenuAction
 from ytgrab.session import Session, setup_table
@@ -78,7 +80,9 @@ class Harness:
             console=Console(file=self.output, width=200),
             environment=env,
             app_factory=self.make_app,
-            help_text="\x1b[1;34musage:\x1b[0m ytgrab [--flags]",  # coloured like Python 3.14's argparse
+            help_text=lambda: (
+                "\x1b[1;34musage:\x1b[0m ytgrab [--flags]"
+            ),  # coloured like Python 3.14's argparse
         )
 
     def make_app(self, options: RunOptions) -> App:
@@ -226,3 +230,49 @@ def test_esc_on_sign_in_keeps_current_sign_in_and_on_next_goes_to_menu():
     # first sign-in is left with Esc, the second sets firefox; Esc on "What next?" shows the menu
     assert harness.runs[0].auth == FIREFOX
     assert prompter.asked[-2:] == ["next", "menu"]
+
+
+@dataclass
+class LanguagePrompter(MenuPrompter):
+    languages: list[str] = field(default_factory=list)
+    menu_languages: list[str] = field(default_factory=list)  # language each menu was drawn in
+
+    def ask_main_menu(self, auth, default=None):
+        self.menu_languages.append(get_language())
+        return super().ask_main_menu(auth, default)
+
+    def ask_language(self, current):
+        self._ask("language")
+        return self.languages.pop(0)
+
+
+def test_language_applies_at_once_and_is_saved(tmp_path):
+    settings = tmp_path / "config.json"
+    prompter = LanguagePrompter(
+        menu=[MenuAction.LANGUAGE, MenuAction.HELP, MenuAction.QUIT], languages=["tr"]
+    )
+    harness = Harness(prompter)
+    harness.session._settings_file = settings
+    harness.session._help_text = lambda: f"help in {get_language()}"
+    harness.session.run()
+    assert prompter.menu_languages == ["en", "tr", "tr"]
+    assert "Dil: Türkçe." in harness.text
+    assert prompter.pages["Komut satırı seçenekleri"].strip() == "help in tr"
+    assert json.loads(settings.read_text(encoding="utf-8")) == {"language": "tr"}
+
+
+def test_esc_on_language_keeps_it():
+    prompter = LanguagePrompter(menu=[MenuAction.LANGUAGE, MenuAction.QUIT], escape_at=["language"])
+    Harness(prompter).session.run()
+    assert get_language() == "en"
+
+
+def test_language_still_switches_when_it_cannot_be_saved(tmp_path):
+    blocker = tmp_path / "file"
+    blocker.write_text("", encoding="utf-8")
+    prompter = LanguagePrompter(menu=[MenuAction.LANGUAGE, MenuAction.QUIT], languages=["tr"])
+    harness = Harness(prompter)
+    harness.session._settings_file = blocker / "config.json"
+    harness.session.run()
+    assert get_language() == "tr"
+    assert "kaydedilemedi" in harness.text

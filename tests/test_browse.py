@@ -32,8 +32,8 @@ def test_quick_places(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     (tmp_path / "Downloads").mkdir()
     (tmp_path / "Movies").mkdir()
-    assert [name for name, _ in quick_places("darwin")] == ["Home", "Downloads", "Movies"]
-    assert [name for name, _ in quick_places("linux")] == ["Home", "Downloads"]
+    assert [name for name, _ in quick_places("darwin")] == ["home", "downloads", "movies"]
+    assert [name for name, _ in quick_places("linux")] == ["home", "downloads"]
 
 
 def test_page_scrolls_within_bounds_and_rerenders_on_resize():

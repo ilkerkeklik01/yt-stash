@@ -14,6 +14,7 @@ from dataclasses import replace
 from typing import Any, Literal
 
 from ytgrab.errors import UsageError
+from ytgrab.i18n import t
 from ytgrab.models import QualityOption, Resolution, VideoInfo, VideoQuality
 
 DEFAULT_HEIGHT = 1080
@@ -88,7 +89,7 @@ def parse_quality(value: str) -> QualitySpec:
     match = re.fullmatch(r"(\d{2,4})p?", text)
     if match and int(match.group(1)) > 0:
         return int(match.group(1))
-    raise UsageError(f"Invalid quality '{value}'. Use a resolution such as 1080, 720p, or 'best'/'worst'.")
+    raise UsageError(t("formats.invalid_quality", value=value))
 
 
 def resolve_quality(spec: QualitySpec, options: Sequence[QualityOption]) -> VideoQuality:

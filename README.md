@@ -77,6 +77,7 @@ ytgrab 1.0.0  Download YouTube videos and playlists
    Show available qualities
 
    Sign-in (off)
+   Language (English)
    Check setup
    Command-line options
    Quit
@@ -114,6 +115,18 @@ questions (handy for scripts), and you can go back to the main menu for more.
 
 Giving a mode and links on the command line (`ytgrab video URL`) skips the main menu
 but still shows the review screen; add `--yes` to skip every question.
+
+### Language / Dil
+
+ytgrab speaks **English** and **Turkish (Türkçe)**: menus, messages, progress and
+`--help`. Choose **Language** in the main menu to switch at once; the choice is saved for
+next time in `config.json` in your settings folder (`%APPDATA%\ytgrab` on Windows,
+`~/Library/Application Support/ytgrab` on macOS, `~/.config/ytgrab` on Linux).
+
+The language is taken from, in this order: `--lang en|tr`, the `YTGRAB_LANG` environment
+variable, the choice saved from the main menu, your system language (`LC_ALL`/`LANG`, or
+the Windows display language), and otherwise English. Flags, quality keywords and command
+examples stay English in every language, so scripts work the same everywhere.
 
 ### Video mode — one or more videos
 
@@ -247,6 +260,7 @@ execution:
   -y, --yes                 never ask questions
   --list-qualities          show qualities only
   --ffmpeg-location PATH    ffmpeg binary or its folder
+  --lang {en,tr}            language of menus and messages
   -v, --verbose             show yt-dlp debug output
 ```
 

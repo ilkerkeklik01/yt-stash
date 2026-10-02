@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from enum import Enum
 
+from ytgrab.i18n import t
+
 
 class ErrorKind(Enum):
     """Why a single video could not be probed or downloaded."""
@@ -28,6 +30,11 @@ class ErrorKind(Enum):
     def is_transient(self) -> bool:
         """Whether retrying the same operation later may succeed."""
         return self in (ErrorKind.RATE_LIMITED, ErrorKind.NETWORK)
+
+    @property
+    def label(self) -> str:
+        """The kind in the user's language (the value stays English, like yt-dlp's messages)."""
+        return t(f"kind.{self.name.lower()}")
 
 
 # Order matters: the first matching pattern wins.
@@ -96,7 +103,7 @@ def classify_error(message: str) -> ErrorKind:
 def clean_message(message: str) -> str:
     """First line of a yt-dlp message, without colors and the ``ERROR: [youtube] <id>:`` prefix."""
     lines = _normalize(message).splitlines()
-    return (lines[0].strip() if lines else "") or "unknown error"
+    return (lines[0].strip() if lines else "") or t("error.unknown")
 
 
 class YtGrabError(Exception):
