@@ -6,6 +6,7 @@ from ytgrab import __version__
 from ytgrab.cli import build_parser, main, options_from_args
 from ytgrab.errors import AuthConfigError, UsageError
 from ytgrab.models import Mode
+from ytgrab.prompts import GoBack
 
 
 def parse(*argv: str):
@@ -134,3 +135,12 @@ def test_from_file_rejects_binary(tmp_path):
     url_file.write_bytes(b"\xff\xfe\x00\x01binary")
     with pytest.raises(UsageError, match="UTF-8"):
         parse("video", "--from-file", str(url_file))
+
+
+def test_esc_with_nothing_to_go_back_to_cancels(capsys, monkeypatch):
+    def leave(self):
+        raise GoBack
+
+    monkeypatch.setattr("ytgrab.app.App.run", leave)
+    assert main(["video", "https://youtu.be/dQw4w9WgXcQ", "--yes"]) == 0
+    assert "Cancelled" in capsys.readouterr().out

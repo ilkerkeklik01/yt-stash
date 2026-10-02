@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
     "yt-dlp[default]>=2025.11.12",
     "rich>=13.7",
+    "questionary>=2.1",
 ]
 
 [project.optional-dependencies]

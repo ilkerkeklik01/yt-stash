@@ -5,17 +5,17 @@ Pure decision logic is separated from I/O so that almost everything can be teste
 offline with fakes.
 
 ```
-cli.py ──► app.py ──────────────────────────────────────────────┐
- (argparse)  (workflow)                                          │
+cli.py ──► session.py ──► app.py ─────────────────────────────────┐
+ (argparse)  (main menu)    (workflow)                           │
               │ uses                                             │
-              ├─ prompts.py   Prompter protocol (Rich / NonInteractive)
+              ├─ prompts.py   Prompter protocol (Terminal / NonInteractive)
               ├─ progress.py  live progress bars (rich)          │
               ├─ probe.py     parallel metadata fetching         │
               ├─ downloader.py parallel downloads, cancel        │
               │       ├─ retry.py        back-off for transient errors
               │       └─ concurrency.py  Ctrl+C-safe thread pool │
               └─ gateway.py   MediaClient protocol + YtDlpClient ◄┘  ← the only yt-dlp API caller
-pure logic:  urls.py · formats.py · options.py · errors.py · paths.py · auth.py · models.py
+pure logic:  urls.py · formats.py · options.py · commandline.py · errors.py · paths.py · auth.py · models.py
 ```
 
 ## Modules
@@ -35,8 +35,13 @@ pure logic:  urls.py · formats.py · options.py · errors.py · paths.py · aut
 | `retry.py` | `RetryPolicy` and `call_with_retry`, shared by probing and downloading. |
 | `concurrency.py` | `map_interruptible`: thread pool that stays responsive to Ctrl+C on every OS. |
 | `downloader.py` | `DownloadManager`: concurrent jobs, retries, cancellation, results. |
-| `prompts.py` / `progress.py` | Terminal UI. |
-| `app.py` | Orchestrates the workflow and the "ask for sign-in and retry" recovery. |
+| `commandline.py` | Renders the `ytgrab` command that repeats an interactive run without questions. |
+| `prompts.py` | `Prompter` protocol; `TerminalPrompter` (arrow-key menus via questionary, every entry explained) and `NonInteractivePrompter`. |
+| `browse.py` | Folder listings for the arrow-key file/folder browser (hidden entries skipped, unreadable folders reported). |
+| `viewer.py` | Full-screen, scrollable page (alternate screen) for the setup check and command-line help. |
+| `progress.py` | Live progress bars. |
+| `app.py` | Orchestrates one run: probe, choose, review screen (`DownloadPlan`), download, "ask for sign-in and retry" recovery. |
+| `session.py` | Main menu shown by a bare `ytgrab`: runs one `App` per choice, keeps the sign-in between runs. |
 | `cli.py` | Argument parsing and dependency wiring. |
 
 ## Key decisions
@@ -78,6 +83,19 @@ extraction so converted files (e.g. `.mp3`) are recognised.
 
 **yt-dlp boundary.** Only `gateway.py` calls yt-dlp's API. `auth.py` additionally imports
 yt-dlp's lists of supported browsers/keyrings so validation never drifts from yt-dlp.
+
+**Prompters ask, the app decides.** The review screen loop lives in `App`, which owns
+validation (writable folder, playlist subfolder, whether subtitles can be embedded).
+Prompter methods only ask one question and return the answer, so the whole workflow is
+tested with `ScriptedPrompter`, and `TerminalPrompter` is tested by sending real key
+presses through prompt_toolkit's pipe input.
+
+**Esc goes back.** `TerminalPrompter` binds Esc on every question except the main menu;
+the question then raises `GoBack`. Whoever asked decides where "back" leads: a
+multi-step question (sign-in, subtitles) returns to its first step, the review screen
+keeps the old value, the folder question returns to the quality question, and anything
+else leaves `App.run()` so the session shows the main menu (or the CLI cancels). Menus need a terminal on stdin *and*
+stdout; otherwise ytgrab behaves as with `--yes`.
 
 **Errors never abort the batch.** Every per-video problem becomes a `ProbeFailure` or a
 failed `JobResult`; the summary lists them and the exit code becomes 1.

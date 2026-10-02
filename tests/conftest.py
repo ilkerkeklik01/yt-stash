@@ -13,7 +13,17 @@ import pytest
 from ytgrab.auth import AuthConfig
 from ytgrab.errors import VideoError
 from ytgrab.gateway import DownloadOutcome
-from ytgrab.models import Mode, ProgressEvent, QualityOption, Selection, Stage, VideoQuality
+from ytgrab.models import (
+    DownloadPlan,
+    Mode,
+    ProgressEvent,
+    QualityOption,
+    Selection,
+    Stage,
+    SubtitleOptions,
+    VideoQuality,
+)
+from ytgrab.prompts import GoBack, ReviewAction
 
 
 def fmt(
@@ -114,7 +124,12 @@ class FakeClient:
 
 @dataclass
 class ScriptedPrompter:
-    """Prompter returning pre-programmed answers and recording what was asked."""
+    """Prompter returning pre-programmed answers and recording what was asked.
+
+    ``review_actions`` are picked on the review screen one after another; once they are
+    used up the download starts (or is cancelled when ``confirm_answer`` is False).
+    Questions named in ``escape_at`` are left with Esc, in that order.
+    """
 
     mode: Mode = Mode.VIDEO
     urls: list[str] = field(default_factory=list)
@@ -122,36 +137,74 @@ class ScriptedPrompter:
     directory: Path | None = None
     confirm_answer: bool = True
     auth_answers: list[AuthConfig | None] = field(default_factory=list)
+    review_actions: list[ReviewAction] = field(default_factory=list)
+    container: str = "mkv"
+    subtitles: SubtitleOptions = field(default_factory=SubtitleOptions)
+    jobs: int = 1
     asked: list[str] = field(default_factory=list)
     quality_options: list[QualityOption] = field(default_factory=list)
+    reviewed: list[DownloadPlan] = field(default_factory=list)
+    review_targets: list[Path] = field(default_factory=list)
+    escape_at: list[str] = field(default_factory=list)
+
+    def _ask(self, question: str) -> None:
+        """Record ``question``; press Esc on it if it is the next entry of ``escape_at``."""
+        self.asked.append(question)
+        if self.escape_at and self.escape_at[0] == question:
+            self.escape_at.pop(0)
+            raise GoBack
 
     def ask_mode(self) -> Mode:
-        self.asked.append("mode")
+        self._ask("mode")
         return self.mode
 
     def ask_urls(self, mode: Mode) -> list[str]:
-        self.asked.append("urls")
+        self._ask("urls")
         return self.urls
 
     def ask_quality(
-        self, options: Sequence[QualityOption], default_height: int | None, video_count: int
+        self,
+        options: Sequence[QualityOption],
+        default_height: int | None,
+        video_count: int,
+        current: Selection | None = None,
     ) -> Selection:
-        self.asked.append("quality")
+        self._ask("quality")
         self.quality_options = list(options)
         return self.quality or VideoQuality(default_height)
 
     def ask_directory(self, default: Path) -> Path:
-        self.asked.append("directory")
+        self._ask("directory")
         assert self.directory is not None
         return self.directory
 
-    def confirm(self, message: str, default: bool = True) -> bool:
-        self.asked.append("confirm")
-        return self.confirm_answer
-
     def ask_auth(self, reason: str) -> AuthConfig | None:
-        self.asked.append("auth")
+        self._ask("auth")
         return self.auth_answers.pop(0) if self.auth_answers else None
+
+    def review(self, plan: DownloadPlan, *, video_count: int, target_dir: Path) -> ReviewAction:
+        self._ask("review")
+        self.reviewed.append(plan)
+        self.review_targets.append(target_dir)
+        if self.review_actions:
+            return self.review_actions.pop(0)
+        return ReviewAction.START if self.confirm_answer else ReviewAction.CANCEL
+
+    def ask_container(self, current: str) -> str:
+        self._ask("container")
+        return self.container
+
+    def ask_subtitles(self, current: SubtitleOptions, *, embed_possible: bool) -> SubtitleOptions:
+        self._ask("subtitles")
+        return self.subtitles
+
+    def ask_overwrite(self, current: bool) -> bool:
+        self._ask("overwrite")
+        return not current
+
+    def ask_jobs(self, current: int, video_count: int) -> int:
+        self._ask("jobs")
+        return self.jobs
 
 
 @pytest.fixture

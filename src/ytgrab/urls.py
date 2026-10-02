@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from urllib.parse import parse_qs, urlsplit
 
 from ytgrab.errors import UsageError
+from ytgrab.paths import expand_path
 
 _VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _PLAYLIST_ID = re.compile(r"^[A-Za-z0-9_-]{2,64}$")
@@ -123,3 +124,24 @@ def normalize_playlist_url(raw: str) -> str:
             hint = "\nHint: this is a video URL; use 'ytgrab video <url>' instead."
         raise UsageError(f"Not a valid YouTube playlist URL: {raw}{hint}")
     return canonical_playlist_url(playlist_id)
+
+
+def split_urls(text: str) -> list[str]:
+    """Split user input on whitespace and commas."""
+    return [part for part in re.split(r"[\s,]+", text) if part]
+
+
+def read_url_file(raw_path: str) -> list[str]:
+    """URLs listed in a UTF-8 text file (several per line allowed, ``#`` starts a comment line).
+
+    Raises:
+        UsageError: if the file cannot be read.
+    """
+    path = expand_path(raw_path)
+    try:
+        # utf-8-sig drops the byte-order mark that Windows Notepad writes.
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        reason = exc.strerror if isinstance(exc, OSError) else "not a UTF-8 text file"
+        raise UsageError(f"Cannot read URL file '{path}': {reason or exc}") from exc
+    return [url for line in lines if not line.lstrip().startswith("#") for url in split_urls(line)]

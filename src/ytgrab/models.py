@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import Enum
+from pathlib import Path
 
 
 class Mode(Enum):
@@ -111,6 +112,21 @@ class AudioOnly:
 
 
 Selection = VideoQuality | AudioOnly
+
+
+@dataclass(frozen=True)
+class DownloadPlan:
+    """The choices of one run that the user can still change on the review screen.
+
+    ``output_dir`` is the folder the user chose; playlists get a subfolder inside it.
+    """
+
+    selection: Selection
+    output_dir: Path
+    container: str
+    subtitles: SubtitleOptions
+    overwrite: bool
+    jobs: int
 
 
 class Stage(str, Enum):

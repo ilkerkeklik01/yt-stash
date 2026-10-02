@@ -60,24 +60,60 @@ Check it works: `ytgrab --version`
 
 ### Interactive
 
-Just run `ytgrab` and answer the questions (mode, URLs, quality, target folder):
+Run `ytgrab` without arguments to open the main menu. Move with the **↑/↓ arrow keys**
+(or `j`/`k`) and press **Enter** to choose; the line under the menu explains the
+highlighted entry. Press **Esc** at any question to go back one step: from a setting
+to the review screen, from the folder to the quality, and from anything before the
+download starts to the main menu.
 
 ```text
-$ ytgrab video https://youtu.be/dQw4w9WgXcQ
-         Available qualities
- # ┃ Quality              ┃
-━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
- 1 │ 2160p60 HDR          │
- 2 │ 1440p60              │
- 3 │ 1080p60 (default)    │
- 4 │ 720p60               │
- …
- 9 │ Audio only (m4a)     │
-Select quality (3):
-Target directory (/Users/me/Downloads):
-Ready to download 1 video(s) as 1080p (or closest lower) into /Users/me/Downloads using 1 parallel download(s).
-Start download? [y/n] (y):
+$ ytgrab
+ytgrab 1.0.0  Download YouTube videos and playlists
+
+▶ What do you want to do? (↑↓ to move, Enter to choose)
+ ❯ Download videos
+   Download a playlist
+   Download links from a text file
+   Show available qualities
+
+   Sign-in (off)
+   Check setup
+   Command-line options
+   Quit
+  Description: Paste one or more video links.
 ```
+
+After you choose a quality and a folder, a review screen lists every setting. Press
+Enter to start, or move to a setting to change it: quality or audio only, folder,
+video format (mp4/mkv/webm), subtitles, what to do with files you already have, and
+how many videos download at the same time.
+
+```text
+▶ Ready to download 2 videos (↑↓ to move, Enter to choose, Esc to go back)
+ ❯ Start download
+
+   Quality              1080p (or closest lower)
+   Save to              ~/Downloads
+   Video format         mp4
+   Subtitles            off
+   Existing files       skip
+   Parallel downloads   2 at a time
+
+   Cancel
+```
+
+Folders and files are picked in a browser: Enter opens a folder, `..` goes up, typing
+filters the list, and shortcuts jump to your Home, Downloads, Desktop and Videos folders.
+You can also create a new folder there or type a path. **Check setup** and
+**Command-line options** open as full-screen pages; scroll with the arrow keys or
+PgUp/PgDn and leave with Esc or `q`.
+
+Links are checked as you type, so a mistyped link is reported before anything starts.
+When a download finishes, ytgrab shows the one-line command that repeats it without
+questions (handy for scripts), and you can go back to the main menu for more.
+
+Giving a mode and links on the command line (`ytgrab video URL`) skips the main menu
+but still shows the review screen; add `--yes` to skip every question.
 
 ### Video mode — one or more videos
 

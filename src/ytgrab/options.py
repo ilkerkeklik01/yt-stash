@@ -34,6 +34,11 @@ class DownloadSettings:
     overwrite: bool = False  # re-download even if the final file already exists
 
 
+def split_languages(text: str) -> tuple[str, ...]:
+    """``"en, tr"`` -> ``("en", "tr")``."""
+    return tuple(lang.strip() for lang in text.split(",") if lang.strip())
+
+
 def format_params(selection: Selection, container: str, *, ffmpeg_available: bool) -> dict[str, Any]:
     """yt-dlp params choosing the streams for ``selection``."""
     if isinstance(selection, AudioOnly):

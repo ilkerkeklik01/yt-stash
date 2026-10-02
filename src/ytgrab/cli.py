@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import os
 import sys
 from collections.abc import Sequence
@@ -16,17 +17,19 @@ from ytgrab.app import App, RunOptions
 from ytgrab.auth import AuthConfig
 from ytgrab.downloader import DEFAULT_WORKERS, MAX_WORKERS
 from ytgrab.environment import detect_environment
-from ytgrab.errors import EXIT_INTERRUPTED, EXIT_USAGE, UsageError, YtGrabError
+from ytgrab.errors import EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE, UsageError, YtGrabError
 from ytgrab.formats import AUDIO_CODECS, parse_quality
 from ytgrab.gateway import YtDlpClient, load_auth_cookies
 from ytgrab.models import Mode, SubtitleOptions
-from ytgrab.options import CONTAINERS, DEFAULT_CONTAINER
+from ytgrab.options import CONTAINERS, DEFAULT_CONTAINER, split_languages
 from ytgrab.paths import expand_path
-from ytgrab.prompts import NonInteractivePrompter, RichPrompter, split_urls
+from ytgrab.prompts import GoBack, NonInteractivePrompter, TerminalPrompter
+from ytgrab.session import Session
+from ytgrab.urls import read_url_file
 
 EPILOG = """\
 examples:
-  ytgrab                                      interactive mode (asks for everything)
+  ytgrab                                      main menu: pick everything with the arrow keys
   ytgrab video https://youtu.be/dQw4w9WgXcQ   one video; asks for quality and folder
   ytgrab video URL1 URL2 -q 720 -o ~/Videos   several videos at 720p, no questions about them
   ytgrab playlist "https://www.youtube.com/playlist?list=PL..." -j 4
@@ -160,26 +163,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _read_url_file(raw_path: str) -> list[str]:
-    path = expand_path(raw_path)
-    try:
-        # utf-8-sig drops the byte-order mark that Windows Notepad writes.
-        lines = path.read_text(encoding="utf-8-sig").splitlines()
-    except (OSError, UnicodeDecodeError) as exc:
-        reason = exc.strerror if isinstance(exc, OSError) else "not a UTF-8 text file"
-        raise UsageError(f"Cannot read URL file '{path}': {reason or exc}") from exc
-    return [url for line in lines if not line.lstrip().startswith("#") for url in split_urls(line)]
-
-
 def options_from_args(args: argparse.Namespace) -> RunOptions:
     """Validate parsed arguments and turn them into :class:`RunOptions`."""
     urls = list(args.urls)
     if args.from_file:
-        urls.extend(_read_url_file(args.from_file))
+        urls.extend(read_url_file(args.from_file))
 
     if args.audio_only and args.quality:
         raise UsageError("--audio-only and --quality cannot be combined.")
-    languages = tuple(lang.strip() for lang in (args.subs or "").split(",") if lang.strip())
+    languages = split_languages(args.subs or "")
     if (args.auto_subs or args.embed_subs) and not languages:
         raise UsageError("--auto-subs/--embed-subs need --subs LANGS (e.g. --subs en).")
 
@@ -200,9 +192,11 @@ def options_from_args(args: argparse.Namespace) -> RunOptions:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point of the ``ytgrab`` command. Returns the process exit code."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     console = Console(highlight=False)
-    interactive = sys.stdin.isatty() and not args.yes
+    # Arrow-key menus need a terminal on both ends; otherwise behave like --yes.
+    interactive = sys.stdin.isatty() and sys.stdout.isatty() and not args.yes
 
     def on_debug(message: str) -> None:
         if args.verbose:
@@ -211,16 +205,37 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         options = options_from_args(args)
         environment = detect_environment(expand_path(args.ffmpeg_location) if args.ffmpeg_location else None)
-        app = App(
-            options,
-            prompter=RichPrompter(console) if interactive else NonInteractivePrompter(),
-            console=console,
-            environment=environment,
-            client_factory=lambda cookies: YtDlpClient(environment, cookies, on_debug),
-            cookie_loader=lambda auth: load_auth_cookies(auth, on_debug),
-            interactive=interactive,
-        )
-        return app.run()
+        prompter = TerminalPrompter(console) if interactive else NonInteractivePrompter()
+        # Cached per sign-in, so later runs of a session don't hit the browser (and keychain) again.
+        cookie_loader = functools.cache(functools.partial(load_auth_cookies, on_debug=on_debug))
+
+        def make_app(run_options: RunOptions, *, check_environment: bool = True) -> App:
+            return App(
+                run_options,
+                prompter=prompter,
+                console=console,
+                environment=environment,
+                client_factory=lambda cookies: YtDlpClient(environment, cookies, on_debug),
+                cookie_loader=cookie_loader,
+                interactive=interactive,
+                check_environment=check_environment,
+            )
+
+        if isinstance(prompter, TerminalPrompter) and options.mode is None and not options.urls:
+            session = Session(
+                options,
+                prompter=prompter,
+                console=console,
+                environment=environment,
+                # The session shows environment warnings once, not before every download.
+                app_factory=lambda run_options: make_app(run_options, check_environment=False),
+                help_text=parser.format_help(),
+            )
+            return session.run()
+        return make_app(options).run()
+    except GoBack:  # Esc with nothing to go back to
+        console.print("Cancelled. Nothing was downloaded.")
+        return EXIT_OK
     except YtGrabError as error:
         console.print(f"[red]Error:[/] {escape(str(error))}")
         return error.exit_code
