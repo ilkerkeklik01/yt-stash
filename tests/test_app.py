@@ -13,8 +13,8 @@ from ytgrab.auth import AuthConfig, BrowserSpec
 from ytgrab.environment import Environment
 from ytgrab.errors import AuthConfigError, OutputDirectoryError, UsageError, VideoError
 from ytgrab.gateway import LoadedCookies
-from ytgrab.models import AudioOnly, Mode, VideoQuality
-from ytgrab.prompts import NonInteractivePrompter
+from ytgrab.models import AudioOnly, Mode, SubtitleOptions, VideoQuality
+from ytgrab.prompts import GoBack, NonInteractivePrompter, ReviewAction
 from ytgrab.retry import RetryPolicy
 
 from conftest import FakeClient, ScriptedPrompter, url_of, vid, video_info
@@ -92,7 +92,7 @@ def test_video_mode_defaults_to_1080p_and_asks_quality_directory_confirm(tmp_pat
     code = harness.run(mode=Mode.VIDEO, urls=(vid(1), f"https://youtu.be/{vid(2)}"))
 
     assert code == 0
-    assert harness.prompter.asked == ["quality", "directory", "confirm"]
+    assert harness.prompter.asked == ["quality", "directory", "review"]
     assert downloaded_ids(client) == [vid(1), vid(2)]
     params = client.downloads[0][1]
     assert params["format_sort"][0] == "res:1080"
@@ -123,7 +123,7 @@ def test_flags_skip_questions(tmp_path):
     client = videos_client(vid(1))
     harness = Harness(tmp_path, client)
     harness.run(mode=Mode.VIDEO, urls=(vid(1),), quality="worst", output_dir=tmp_path / "out")
-    assert harness.prompter.asked == ["confirm"]
+    assert harness.prompter.asked == ["review"]
     assert client.downloads[0][1]["format_sort"][0] == "res:360"
     assert (tmp_path / "out").is_dir()
 
@@ -390,3 +390,174 @@ def test_already_present_videos_are_reported(tmp_path):
     harness = Harness(tmp_path, client)
     assert harness.run(mode=Mode.VIDEO, urls=(vid(1),)) == 0
     assert "already downloaded" in harness.text
+
+
+def test_review_screen_changes_every_setting(tmp_path):
+    client = videos_client(vid(1), vid(2))
+    english = SubtitleOptions(("en",), include_auto_generated=True)
+    prompter = ScriptedPrompter(
+        directory=tmp_path,
+        review_actions=[
+            ReviewAction.CONTAINER,
+            ReviewAction.SUBTITLES,
+            ReviewAction.OVERWRITE,
+            ReviewAction.JOBS,
+            ReviewAction.QUALITY,
+        ],
+        container="webm",
+        subtitles=english,
+        jobs=1,
+        quality=VideoQuality(720),
+    )
+    harness = Harness(tmp_path, client, prompter)
+
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1), vid(2))) == 0
+
+    assert prompter.asked == [
+        "quality",
+        "directory",
+        *("review", "container"),
+        *("review", "subtitles"),
+        *("review", "overwrite"),
+        *("review", "jobs"),
+        *("review", "quality"),
+        "review",
+    ]
+    final = prompter.reviewed[-1]
+    assert (final.container, final.subtitles, final.overwrite, final.jobs) == ("webm", english, True, 1)
+    params = client.downloads[0][1]
+    assert params["format_sort"][0] == "res:720"
+    assert params["merge_output_format"] == "webm/mkv"
+    assert params["subtitleslangs"] == ["en"] and params["writeautomaticsub"]
+    assert params["overwrites"] is True
+
+
+def test_review_screen_changes_directory_even_when_given_as_flag(tmp_path):
+    class NewFolder(ScriptedPrompter):
+        def ask_directory(self, default):
+            self.asked.append("directory")
+            assert default == tmp_path / "flag"
+            return tmp_path / "chosen"
+
+    client = videos_client(vid(1))
+    prompter = NewFolder(review_actions=[ReviewAction.DIRECTORY])
+    harness = Harness(tmp_path, client, prompter)
+    harness.run(mode=Mode.VIDEO, urls=(vid(1),), output_dir=tmp_path / "flag", quality=720)
+    assert prompter.asked == ["review", "directory", "review"]
+    assert client.downloads[0][1]["paths"]["home"] == str(tmp_path / "chosen")
+
+
+def test_review_shows_playlist_subfolder(tmp_path):
+    client = videos_client(vid(1))
+    client.playlist = {"id": "PLx", "title": "Mix", "entries": [{"id": vid(1)}]}
+    harness = Harness(tmp_path, client)
+    harness.run(mode=Mode.PLAYLIST, urls=("https://www.youtube.com/playlist?list=PLx",))
+    assert harness.prompter.review_targets == [tmp_path / "Mix"]
+    assert harness.prompter.reviewed[0].output_dir == tmp_path
+
+
+def test_cancel_on_review_screen_downloads_nothing(tmp_path):
+    client = videos_client(vid(1))
+    prompter = ScriptedPrompter(directory=tmp_path, review_actions=[ReviewAction.CANCEL])
+    harness = Harness(tmp_path, client, prompter)
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1),)) == 0
+    assert client.downloads == []
+    assert "Nothing was downloaded" in harness.text
+
+
+def test_interactive_run_prints_equivalent_command(tmp_path):
+    harness = Harness(tmp_path, videos_client(vid(1)))
+    harness.run(mode=Mode.VIDEO, urls=(vid(1),))
+    assert "skip the questions" in harness.text
+    assert "ytgrab video" in harness.text and url_of(vid(1)) in harness.text
+    assert "-q 1080 -o" in harness.text
+    assert "--yes" in harness.text
+
+
+def test_non_interactive_run_describes_plan_without_command_hint(tmp_path):
+    harness = Harness(tmp_path, videos_client(vid(1)), NonInteractivePrompter(), interactive=False)
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1),), output_dir=tmp_path) == 0
+    assert "Downloading 1 video as 1080p (or closest lower)" in harness.text
+    assert "skip the questions" not in harness.text
+
+
+def test_environment_check_can_be_disabled(tmp_path):
+    harness = Harness(tmp_path, videos_client(vid(1)), env=Environment(ffmpeg_available=False))
+    app = App(
+        RunOptions(mode=Mode.VIDEO, urls=(vid(1),)),
+        prompter=harness.prompter,
+        console=harness.console,
+        environment=harness.env,
+        client_factory=harness.client_factory,
+        cookie_loader=harness.cookie_loader,
+        interactive=True,
+        check_environment=False,
+    )
+    app.run()
+    assert "ffmpeg was not found" not in harness.text
+
+
+def test_auth_entered_during_run_is_exposed(tmp_path):
+    public = videos_client()
+    public.videos[url_of(vid(1))] = VideoError(MEMBERS_ONLY)
+    prompter = ScriptedPrompter(directory=tmp_path, auth_answers=[FIREFOX])
+    harness = Harness(tmp_path, public, prompter, authed_client=videos_client(vid(1)))
+    app = App(
+        RunOptions(mode=Mode.VIDEO, urls=(vid(1),)),
+        prompter=prompter,
+        console=harness.console,
+        environment=harness.env,
+        client_factory=harness.client_factory,
+        cookie_loader=harness.cookie_loader,
+        interactive=True,
+    )
+    app.run()
+    assert app.auth == FIREFOX
+
+
+def test_esc_while_changing_a_setting_returns_to_review_unchanged(tmp_path):
+    client = videos_client(vid(1), vid(2))
+    prompter = ScriptedPrompter(
+        directory=tmp_path,
+        review_actions=[ReviewAction.CONTAINER, ReviewAction.DIRECTORY],
+        escape_at=["container", "directory"],
+    )
+    harness = Harness(tmp_path, client, prompter)
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1), vid(2))) == 0
+    assert prompter.asked[2:] == ["review", "container", "review", "directory", "review"]
+    assert prompter.reviewed[-1] == prompter.reviewed[0]
+    assert len(client.downloads) == 2
+
+
+def test_esc_on_folder_question_returns_to_quality(tmp_path):
+    client = videos_client(vid(1))
+    prompter = ScriptedPrompter(directory=tmp_path, escape_at=["directory"])
+    harness = Harness(tmp_path, client, prompter)
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1),)) == 0
+    assert prompter.asked == ["quality", "directory", "quality", "directory", "review"]
+
+
+@pytest.mark.parametrize(
+    ("escape_at", "options"),
+    [
+        ("quality", {}),
+        ("review", {}),
+        ("directory", {"quality": 720}),  # no quality question to return to
+    ],
+)
+def test_esc_without_previous_step_leaves_the_run(tmp_path, escape_at, options):
+    client = videos_client(vid(1))
+    harness = Harness(tmp_path, client, ScriptedPrompter(directory=tmp_path, escape_at=[escape_at]))
+    with pytest.raises(GoBack):
+        harness.run(mode=Mode.VIDEO, urls=(vid(1),), **options)
+    assert client.downloads == []
+
+
+def test_esc_on_sign_in_question_skips_sign_in(tmp_path):
+    client = videos_client(vid(1))
+    client.videos[url_of(vid(2))] = VideoError(MEMBERS_ONLY)
+    prompter = ScriptedPrompter(directory=tmp_path, escape_at=["auth"])
+    harness = Harness(tmp_path, client, prompter)
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1), vid(2))) == 1
+    assert prompter.asked.count("auth") == 1
+    assert downloaded_ids(client) == [vid(1)]

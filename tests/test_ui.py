@@ -1,29 +1,88 @@
-"""Tests of the terminal prompts and progress display."""
+"""Tests of the terminal prompts and progress display.
+
+Prompts are driven with real key presses through prompt_toolkit's pipe input.
+"""
 
 import io
+import threading
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from prompt_toolkit.input import create_pipe_input
+from prompt_toolkit.output import DummyOutput
 from rich.console import Console
 
 from ytgrab.auth import AuthConfig, BrowserSpec
 from ytgrab.downloader import DownloadJob, JobResult, JobStatus
-from ytgrab.errors import AuthConfigError, UsageError, VideoError
-from ytgrab.models import AudioOnly, Mode, ProgressEvent, QualityOption, Stage, VideoInfo, VideoQuality
+from ytgrab.errors import UsageError, VideoError
+from ytgrab.models import (
+    AudioOnly,
+    DownloadPlan,
+    Mode,
+    ProgressEvent,
+    QualityOption,
+    Stage,
+    SubtitleOptions,
+    VideoInfo,
+    VideoQuality,
+)
 from ytgrab.progress import RichProgressReporter, describe_progress, shorten
-from ytgrab.prompts import NonInteractivePrompter, RichPrompter, quality_choices, split_urls
+from ytgrab.prompts import (
+    ESC_TIMEOUT,
+    GoBack,
+    MenuAction,
+    NonInteractivePrompter,
+    ReviewAction,
+    TerminalPrompter,
+    describe_subtitles,
+    quality_choices,
+)
+from ytgrab.urls import split_urls
 
 OPTIONS = [
     QualityOption(2160, 60, True, 1),
     QualityOption(1080, 30, False, 2),
     QualityOption(720, 30, False, 2),
 ]
+UP, DOWN, ENTER, CLEAR, ESC = "\x1b[A", "\x1b[B", "\r", "\x15", "\x1b"  # Ctrl+U clears the line
+VIDEO_URL = "https://youtu.be/dQw4w9WgXcQ"
 
 
-def prompter(answers: str):
-    output = io.StringIO()
-    console = Console(file=output, width=120)
-    return RichPrompter(console, stream=io.StringIO(answers)), output
+@contextmanager
+def keys(*presses: str):
+    """A TerminalPrompter that reads ``presses`` as keyboard input.
+
+    Like a person, the typist pauses after Esc: an Esc followed at once by another key
+    would be read as one Alt+key combination.
+    """
+
+    def type_keys() -> None:
+        for press in presses:
+            pipe.send_text(press)
+            if press == ESC:
+                time.sleep(ESC_TIMEOUT * 3)
+
+    with create_pipe_input() as pipe:
+        typist = threading.Thread(target=type_keys, daemon=True)
+        typist.start()
+        output = io.StringIO()
+        yield TerminalPrompter(Console(file=output, width=120), input=pipe, output=DummyOutput())
+        typist.join()
+
+
+def plan(**changes) -> DownloadPlan:
+    values = dict(
+        selection=VideoQuality(1080),
+        output_dir=Path("/videos"),
+        container="mp4",
+        subtitles=SubtitleOptions(),
+        overwrite=False,
+        jobs=3,
+    )
+    values.update(changes)
+    return DownloadPlan(**values)
 
 
 def test_quality_choices_default_and_audio_entries():
@@ -38,56 +97,264 @@ def test_quality_choices_without_video_formats():
     assert default == 1
 
 
-def test_ask_quality_accepts_default_on_enter():
-    rich_prompter, output = prompter("\n")
-    assert rich_prompter.ask_quality(OPTIONS, 1080, 2) == VideoQuality(1080)
-    text = output.getvalue()
-    assert "2160p60 HDR" in text and "1/2 videos" in text and "(default)" in text
+def test_ask_quality_starts_on_default():
+    with keys(ENTER) as prompter:
+        assert prompter.ask_quality(OPTIONS, 1080, 2) == VideoQuality(1080)
 
 
-def test_ask_quality_rejects_invalid_then_accepts():
-    rich_prompter, _ = prompter("99\nabc\n1\n")
-    assert rich_prompter.ask_quality(OPTIONS, 1080, 1) == VideoQuality(2160)
+def test_ask_quality_arrow_keys_move_and_skip_separator():
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_quality(OPTIONS, 1080, 2) == VideoQuality(720)
+    with keys(DOWN, DOWN, ENTER) as prompter:
+        assert prompter.ask_quality(OPTIONS, 1080, 2) == AudioOnly("m4a")
 
 
-def test_ask_quality_audio():
-    rich_prompter, _ = prompter("5\n")
-    assert rich_prompter.ask_quality(OPTIONS, 1080, 1) == AudioOnly("mp3")
+def test_ask_quality_starts_on_current_choice():
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_quality(OPTIONS, 1080, 1, current=AudioOnly("mp3")) == AudioOnly("opus")
 
 
-def test_ask_mode_urls_directory_confirm(tmp_path):
-    rich_prompter, _ = prompter(f"playlist\nhttps://x\n{tmp_path}\nn\n")
-    assert rich_prompter.ask_mode() is Mode.PLAYLIST
-    assert rich_prompter.ask_urls(Mode.PLAYLIST) == ["https://x"]
-    assert rich_prompter.ask_directory(Path("/default")) == tmp_path.resolve()
-    assert rich_prompter.confirm("ok?") is False
+def test_ask_mode():
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_mode() is Mode.PLAYLIST
 
 
-def test_ask_video_urls_splits_input():
-    rich_prompter, _ = prompter("a b, c\n")
-    assert rich_prompter.ask_urls(Mode.VIDEO) == ["a", "b", "c"]
+def test_ask_video_urls_rejects_invalid_input_until_fixed():
+    with keys("not-a-link", ENTER, CLEAR, f"{VIDEO_URL}, dQw4w9WgXcQ", ENTER) as prompter:
+        assert prompter.ask_urls(Mode.VIDEO) == [VIDEO_URL, "dQw4w9WgXcQ"]
+
+
+def test_ask_playlist_url_rejects_video_links():
+    playlist = "https://www.youtube.com/playlist?list=PL123"
+    with keys(VIDEO_URL, ENTER, CLEAR, playlist, ENTER) as prompter:
+        assert prompter.ask_urls(Mode.PLAYLIST) == [playlist]
+
+
+@pytest.fixture
+def tree(tmp_path, monkeypatch):
+    """A folder with two subfolders, a hidden one and text files; the home folder is tmp_path."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Windows
+    root = tmp_path / "root"
+    for name in ("alpha", "beta", ".hidden"):
+        (root / name).mkdir(parents=True)
+    (root / "links.txt").write_text(f"# mine\n{VIDEO_URL}\n", encoding="utf-8")
+    (root / "empty.txt").write_text("# nothing\n", encoding="utf-8")
+    return root
+
+
+# Folder browser entries: Save here, New folder, Type a path, (gap), .., alpha/, beta/, (gap), Go to Home
+TO_DOTDOT, TO_ALPHA = DOWN * 3, DOWN * 4
+
+
+def test_browse_save_here_on_enter(tree):
+    with keys(ENTER) as prompter:
+        assert prompter.ask_directory(tree) == tree
+
+
+def test_browse_opens_folders_and_goes_up_keeping_the_cursor(tree):
+    with keys(TO_ALPHA, ENTER, ENTER) as prompter:
+        assert prompter.ask_directory(tree) == tree / "alpha"
+    # from alpha: ".." goes up with the cursor on alpha/, so Enter opens alpha again
+    with keys(TO_DOTDOT, ENTER, ENTER, ENTER) as prompter:
+        assert prompter.ask_directory(tree / "alpha") == tree / "alpha"
+
+
+def test_browse_typing_filters_folders(tree):
+    with keys("bet", ENTER, ENTER) as prompter:
+        assert prompter.ask_directory(tree) == tree / "beta"
+
+
+def test_browse_quick_places(tree):
+    with keys(UP, ENTER, ENTER) as prompter:  # the last entry is "Go to Home"
+        assert prompter.ask_directory(tree) == tree.parent
+
+
+def test_browse_new_folder(tree):
+    with keys(DOWN, ENTER, "clips", ENTER, ENTER) as prompter:
+        assert prompter.ask_directory(tree) == tree / "clips"
+    assert (tree / "clips").is_dir()
+
+
+def test_browse_rejects_bad_folder_names_and_esc_returns_to_browser(tree):
+    with keys(DOWN, ENTER, "a/b", ENTER, ESC, ENTER) as prompter:
+        assert prompter.ask_directory(tree) == tree
+    assert not (tree / "a").exists()
+
+
+def test_browse_type_a_path(tree):
+    with keys(DOWN * 2, ENTER, CLEAR, "~/later", ENTER) as prompter:
+        assert prompter.ask_directory(tree) == tree.parent / "later"
+
+
+def test_browse_starts_at_nearest_existing_folder(tree):
+    with keys(ENTER) as prompter:
+        assert prompter.ask_directory(tree / "missing" / "deeper") == tree
+
+
+def test_browse_esc_goes_back(tree):
+    with keys(ESC) as prompter, pytest.raises(GoBack):
+        prompter.ask_directory(tree)
 
 
 def test_ask_auth_browser_with_profile():
-    rich_prompter, _ = prompter("browser\nchrome\nWork\n")
-    assert rich_prompter.ask_auth("why") == AuthConfig(browser=BrowserSpec("chrome", "Work"))
+    with keys(ENTER, UP, UP, UP, ENTER, "Work", ENTER) as prompter:  # firefox -> chrome
+        assert prompter.ask_auth("why") == AuthConfig(browser=BrowserSpec("chrome", "Work"))
 
 
-def test_ask_auth_skip_and_file(tmp_path):
-    assert prompter("skip\n")[0].ask_auth("why") is None
-    cookies = tmp_path / "c.txt"
+def test_ask_auth_skip():
+    with keys(DOWN, DOWN, ENTER) as prompter:
+        assert prompter.ask_auth("why") is None
+
+
+def test_ask_auth_file_is_picked_in_browser_and_validated(tree):
+    empty = tree / "empty-cookies.txt"
+    empty.touch()
+    cookies = tree / "cookies.txt"
     cookies.write_text("x", encoding="utf-8")
-    assert prompter(f"file\n{cookies}\n")[0].ask_auth("why") == AuthConfig(cookies_file=cookies.resolve())
-    with pytest.raises(AuthConfigError):
-        prompter(f"file\n{tmp_path / 'missing'}\n")[0].ask_auth("why")
+    # starts in ~/Downloads, which does not exist: the home folder is shown instead
+    with keys(DOWN, ENTER, "root", ENTER, "empty-c", ENTER, "cookies.t", ENTER) as prompter:
+        assert prompter.ask_auth("why") == AuthConfig(cookies_file=cookies)
+
+
+def test_review_starts_on_enter():
+    with keys(ENTER) as prompter:
+        assert prompter.review(plan(), video_count=2, target_dir=Path("/videos")) is ReviewAction.START
+
+
+@pytest.mark.parametrize(
+    ("downs", "selection", "action"),
+    [
+        (1, VideoQuality(1080), ReviewAction.QUALITY),
+        (3, VideoQuality(1080), ReviewAction.CONTAINER),
+        (3, AudioOnly("mp3"), ReviewAction.SUBTITLES),  # no video format row for audio
+        (6, VideoQuality(1080), ReviewAction.JOBS),
+        (7, VideoQuality(1080), ReviewAction.CANCEL),
+    ],
+)
+def test_review_rows(downs, selection, action):
+    with keys(DOWN * downs, ENTER) as prompter:
+        assert prompter.review(plan(selection=selection), video_count=2, target_dir=Path("/v")) is action
+
+
+def test_review_hides_parallel_downloads_for_one_video():
+    with keys(DOWN * 6, ENTER) as prompter:
+        assert prompter.review(plan(), video_count=1, target_dir=Path("/v")) is ReviewAction.CANCEL
+
+
+def test_ask_container_starts_on_current():
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_container("mkv") == "webm"
+
+
+def test_ask_subtitles_files_with_languages_and_auto():
+    with keys(DOWN, ENTER, CLEAR, "en, tr", ENTER, DOWN, ENTER) as prompter:
+        result = prompter.ask_subtitles(SubtitleOptions(), embed_possible=True)
+    assert result == SubtitleOptions(("en", "tr"), include_auto_generated=True, embed=False)
+
+
+def test_ask_subtitles_embed_and_off():
+    with keys(DOWN, DOWN, ENTER, ENTER, ENTER) as prompter:
+        assert prompter.ask_subtitles(SubtitleOptions(), embed_possible=True) == SubtitleOptions(
+            ("en",), embed=True
+        )
+    with keys(UP, ENTER) as prompter:
+        assert prompter.ask_subtitles(SubtitleOptions(("en",)), embed_possible=True) == SubtitleOptions()
+
+
+def test_ask_subtitles_embedding_disabled_without_ffmpeg():
+    # From "separate files" the disabled "embed" entry is skipped and the menu wraps to "off".
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_subtitles(SubtitleOptions(("en",)), embed_possible=False) == SubtitleOptions()
+
+
+def test_ask_overwrite_and_jobs():
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_overwrite(False) is True
+    with keys(ENTER) as prompter:
+        assert prompter.ask_jobs(5, video_count=3) == 3
+    with keys(UP, ENTER) as prompter:
+        assert prompter.ask_jobs(2, video_count=8) == 1
+
+
+def test_main_menu_url_file_and_next(tmp_path):
+    url_file = tmp_path / "links.txt"
+    url_file.write_text(f"# mine\n{VIDEO_URL}\n", encoding="utf-8")
+    empty = tmp_path / "empty.txt"
+    empty.write_text("# nothing\n", encoding="utf-8")
+    with keys(ENTER) as prompter:
+        assert prompter.ask_main_menu(AuthConfig()) is MenuAction.VIDEOS
+    with keys(UP, ENTER) as prompter:
+        assert prompter.ask_main_menu(AuthConfig(), default=MenuAction.PLAYLIST) is MenuAction.VIDEOS
+    # "Type a path…" is the first entry of a file browser; the empty file is rejected
+    with keys(ENTER, CLEAR, str(empty), ENTER, ENTER, CLEAR, str(url_file), ENTER) as prompter:
+        assert prompter.ask_url_file() == [VIDEO_URL]
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_next() is False
+
+
+@pytest.mark.parametrize(
+    "ask",
+    [
+        lambda p: p.ask_mode(),
+        lambda p: p.ask_urls(Mode.VIDEO),
+        lambda p: p.ask_quality(OPTIONS, 1080, 1),
+        lambda p: p.ask_directory(Path("/default")),
+        lambda p: p.review(plan(), video_count=1, target_dir=Path("/v")),
+        lambda p: p.ask_container("mp4"),
+        lambda p: p.ask_jobs(2, 4),
+        lambda p: p.ask_url_file(),
+        lambda p: p.ask_next(),
+        lambda p: p.ask_auth("why"),
+    ],
+)
+def test_esc_leaves_any_question(ask):
+    with keys("abc", ESC) as prompter, pytest.raises(GoBack):
+        ask(prompter)
+
+
+def test_esc_in_later_step_returns_to_first_step():
+    # Subtitles: files -> Esc on languages -> back to "how", which starts on "off" again
+    with keys(DOWN, ENTER, ESC, ENTER) as prompter:
+        assert prompter.ask_subtitles(SubtitleOptions(), embed_possible=True) == SubtitleOptions()
+    # Sign-in: browser -> Esc on browser list -> back to method -> skip
+    with keys(ENTER, ESC, DOWN, DOWN, ENTER) as prompter:
+        assert prompter.ask_auth("why") is None
+
+
+def test_esc_does_nothing_on_main_menu():
+    with keys(ESC, DOWN, ENTER) as prompter:
+        assert prompter.ask_main_menu(AuthConfig()) is MenuAction.PLAYLIST
+
+
+def test_url_file_browser_rejects_files_without_links(tree, monkeypatch):
+    monkeypatch.chdir(tree)
+    with keys("empty", ENTER, "links", ENTER) as prompter:
+        assert prompter.ask_url_file() == [VIDEO_URL]
+
+
+def test_show_page_closes_with_esc_or_q():
+    for close in (ESC, "q", ENTER):
+        with keys(DOWN, " ", close) as prompter:
+            prompter.show_page("Setup", "\n".join(f"line {i}" for i in range(100)))
+
+
+def test_describe_subtitles():
+    assert describe_subtitles(SubtitleOptions()) == "off"
+    assert describe_subtitles(SubtitleOptions(("en", "tr"), True, True)) == (
+        "en, tr (embedded in the video, auto-generated too)"
+    )
 
 
 def test_non_interactive_prompter():
     p = NonInteractivePrompter()
     assert p.ask_quality(OPTIONS, 1080, 1) == VideoQuality(1080)
     assert p.ask_directory(Path("/d")) == Path("/d")
-    assert p.confirm("?") is True
     assert p.ask_auth("?") is None
+    assert p.review(plan(), video_count=1, target_dir=Path("/d")) is ReviewAction.START
+    assert p.ask_container("mkv") == "mkv"
+    assert p.ask_jobs(4, 9) == 4 and p.ask_overwrite(True) is True
+    assert p.ask_subtitles(SubtitleOptions(("en",)), embed_possible=False) == SubtitleOptions(("en",))
     with pytest.raises(UsageError):
         p.ask_mode()
     with pytest.raises(UsageError):

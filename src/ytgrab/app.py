@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from contextlib import suppress
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from rich.markup import escape
 from rich.table import Table
 
 from ytgrab.auth import AuthConfig
+from ytgrab.commandline import MAX_LISTED_URLS, equivalent_command
 from ytgrab.downloader import DEFAULT_WORKERS, DownloadJob, DownloadManager, DownloadReport, JobStatus
 from ytgrab.environment import Environment
 from ytgrab.errors import (
@@ -26,12 +28,21 @@ from ytgrab.errors import (
 )
 from ytgrab.formats import QualitySpec, collect_quality_options, default_height, resolve_quality
 from ytgrab.gateway import LoadedCookies, MediaClient
-from ytgrab.models import AudioOnly, Mode, PlaylistInfo, ProbeTarget, Selection, SubtitleOptions, VideoInfo
+from ytgrab.models import (
+    AudioOnly,
+    DownloadPlan,
+    Mode,
+    PlaylistInfo,
+    ProbeTarget,
+    Selection,
+    SubtitleOptions,
+    VideoInfo,
+)
 from ytgrab.options import DEFAULT_CONTAINER, DownloadSettings, build_download_params
-from ytgrab.paths import default_download_dir, ensure_writable_directory, sanitize_component
+from ytgrab.paths import default_download_dir, display_path, ensure_writable_directory, sanitize_component
 from ytgrab.probe import ProbeFailure, Prober, ProbeResult, playlist_from_info
 from ytgrab.progress import ProbeProgress, RichProgressReporter
-from ytgrab.prompts import Prompter, render_quality_table
+from ytgrab.prompts import GoBack, Prompter, ReviewAction, describe_selection, plural, render_quality_table
 from ytgrab.retry import RetryPolicy
 from ytgrab.urls import normalize_playlist_url, normalize_video_urls
 
@@ -43,6 +54,24 @@ AUTH_HINT = (
     "(with an active membership for members-only videos). Pass --cookies-from-browser BROWSER "
     "or --cookies FILE."
 )
+
+
+def environment_warnings(environment: Environment) -> list[str]:
+    """Rich-markup warnings about missing external programs."""
+    warnings = []
+    if not environment.ffmpeg_available:
+        warnings.append(
+            "[yellow]⚠ ffmpeg was not found.[/] Without it, YouTube only offers single-file "
+            "formats (usually up to 360p), audio cannot be converted and subtitles cannot be "
+            "embedded. See the README for installation instructions."
+        )
+    if not environment.js_runtimes:
+        warnings.append(
+            "[yellow]⚠ No JavaScript runtime (deno, node, bun or quickjs) was found.[/] "
+            "YouTube may then only offer a few low-quality formats. Installing deno is "
+            "recommended: https://deno.com"
+        )
+    return warnings
 
 
 @dataclass(frozen=True)
@@ -63,7 +92,11 @@ class RunOptions:
 
 
 class App:
-    """Runs one ytgrab session. All I/O dependencies are injected for testability."""
+    """Runs one ytgrab session. All I/O dependencies are injected for testability.
+
+    :class:`~ytgrab.prompts.GoBack` raised by a question that has no previous step here
+    (link, quality, the review screen itself) leaves :meth:`run`: the caller goes back.
+    """
 
     def __init__(
         self,
@@ -76,6 +109,7 @@ class App:
         cookie_loader: CookieLoader,
         interactive: bool,
         retry: RetryPolicy | None = None,
+        check_environment: bool = True,
     ) -> None:
         self._options = options
         self._prompter = prompter
@@ -85,8 +119,14 @@ class App:
         self._cookie_loader = cookie_loader
         self._interactive = interactive
         self._retry = retry
+        self._check_environment = check_environment
         self._auth = options.auth
         self._connected_client: MediaClient | None = None
+
+    @property
+    def auth(self) -> AuthConfig:
+        """The sign-in used in the end, including one the user entered during the run."""
+        return self._auth
 
     @property
     def _client(self) -> MediaClient:
@@ -98,7 +138,9 @@ class App:
 
     def run(self) -> int:
         """Execute the whole workflow and return the process exit code."""
-        self._warn_about_environment()
+        if self._check_environment:
+            for warning in environment_warnings(self._env):
+                self._console.print(warning)
         mode, urls = self._resolve_targets()
         self._connect(self._auth)
 
@@ -114,18 +156,20 @@ class App:
             self._console.print(render_quality_table(options, default_height(options), len(probe.videos)))
             return self._exit_code(DownloadReport(), probe.failures)
 
-        selection = self._choose_selection(probe.videos)
-        output_dir = self._choose_output_dir(playlist)
-        if not self._confirm_plan(probe.videos, selection, output_dir):
-            self._console.print("Aborted.")
+        plan = self._review_plan(probe.videos, self._initial_plan(probe.videos, playlist), playlist)
+        if plan is None:
+            self._console.print("Cancelled. Nothing was downloaded.")
             return EXIT_OK
 
-        jobs = self._build_jobs(probe.videos, selection, output_dir, playlist)
-        report = self._download(jobs)
+        output_dir = self._target_dir(plan.output_dir, playlist)
+        jobs = self._build_jobs(probe.videos, plan, output_dir, playlist)
+        report = self._download(jobs, plan.jobs)
         if not report.interrupted:
-            report = self._recover_download_auth(report)
+            report = self._recover_download_auth(report, plan.jobs)
 
         self._print_summary(report, probe.failures, output_dir)
+        if self._interactive and not report.interrupted:
+            self._print_equivalent_command(mode, urls, plan)
         return self._exit_code(report, probe.failures)
 
     @staticmethod
@@ -137,20 +181,6 @@ class App:
         return EXIT_OK
 
     # ------------------------------------------------------------------ input & connection
-
-    def _warn_about_environment(self) -> None:
-        if not self._env.ffmpeg_available:
-            self._console.print(
-                "[yellow]⚠ ffmpeg was not found.[/] Without it, YouTube only offers single-file "
-                "formats (usually up to 360p), audio cannot be converted and subtitles cannot be "
-                "embedded. See the README for installation instructions."
-            )
-        if not self._env.js_runtimes:
-            self._console.print(
-                "[yellow]⚠ No JavaScript runtime (deno, node, bun or quickjs) was found.[/] "
-                "YouTube may then only offer a few low-quality formats. Installing deno is "
-                "recommended: https://deno.com"
-            )
 
     def _resolve_targets(self) -> tuple[Mode, list[str]]:
         mode = self._options.mode or self._prompter.ask_mode()
@@ -189,6 +219,8 @@ class App:
                     return False
                 self._connect(auth)
                 return True
+            except GoBack:  # Esc means the same as "Don't sign in"
+                return False
             except AuthConfigError as error:
                 self._console.print(f"[red]{escape(str(error))}")
 
@@ -247,12 +279,32 @@ class App:
 
     # ------------------------------------------------------------------ choices
 
+    def _initial_plan(self, videos: Sequence[VideoInfo], playlist: PlaylistInfo | None) -> DownloadPlan:
+        """Settings from the command line; quality and folder are asked if they were not given."""
+        quality_asked = self._options.quality is None and not self._options.audio_codec
+        while True:
+            selection = self._choose_selection(videos)
+            try:
+                output_dir = self._choose_output_dir(playlist)
+            except GoBack:
+                if quality_asked:
+                    continue  # Esc on the folder question returns to the quality question
+                raise
+            return DownloadPlan(
+                selection=selection,
+                output_dir=output_dir,
+                container=self._options.container,
+                subtitles=self._options.subtitles,
+                overwrite=self._options.overwrite,
+                jobs=self._options.jobs,
+            )
+
     def _choose_selection(self, videos: Sequence[VideoInfo]) -> Selection:
         if self._options.audio_codec:
             return AudioOnly(self._options.audio_codec)
-        options = collect_quality_options(videos)
         if self._options.quality is None:
-            return self._prompter.ask_quality(options, default_height(options), len(videos))
+            return self._ask_selection(videos)
+        options = collect_quality_options(videos)
         selection = resolve_quality(self._options.quality, options)
         if selection.height is not None and selection.height not in {o.height for o in options}:
             self._console.print(
@@ -260,47 +312,85 @@ class App:
             )
         return selection
 
-    def _choose_output_dir(self, playlist: PlaylistInfo | None) -> Path:
+    def _ask_selection(self, videos: Sequence[VideoInfo], current: Selection | None = None) -> Selection:
+        options = collect_quality_options(videos)
+        return self._prompter.ask_quality(options, default_height(options), len(videos), current)
+
+    @staticmethod
+    def _target_dir(output_dir: Path, playlist: PlaylistInfo | None) -> Path:
+        """Where the files go: playlists get a subfolder named after them."""
+        return output_dir / sanitize_component(playlist.title) if playlist else output_dir
+
+    def _choose_output_dir(self, playlist: PlaylistInfo | None, current: Path | None = None) -> Path:
+        """The folder from ``--output`` or asked, once its target is known to be writable.
+
+        With ``current`` (a change on the review screen) the folder is always asked.
+        """
+        flag = self._options.output_dir if current is None else None
         while True:
-            directory = self._options.output_dir or self._prompter.ask_directory(default_download_dir())
-            if playlist is not None:
-                directory = directory / sanitize_component(playlist.title)
+            directory = flag or self._prompter.ask_directory(current or default_download_dir())
             try:
-                return ensure_writable_directory(directory)
+                ensure_writable_directory(self._target_dir(directory, playlist))
+                return directory
             except OutputDirectoryError as error:
-                if not self._interactive or self._options.output_dir is not None:
+                if not self._interactive or flag is not None:
                     raise
                 self._console.print(f"[red]{escape(str(error))}")
 
-    def _confirm_plan(self, videos: Sequence[VideoInfo], selection: Selection, output_dir: Path) -> bool:
-        if isinstance(selection, AudioOnly):
-            what = f"audio only ({selection.codec})"
-        elif selection.height is None:
-            what = "best available quality"
-        else:
-            what = f"{selection.height}p (or closest lower)"
-        workers = min(self._options.jobs, len(videos))
-        self._console.print(
-            f"\nReady to download [b]{len(videos)}[/] video(s) as [b]{what}[/] into "
-            f"[b]{escape(str(output_dir))}[/] using {workers} parallel download(s)."
-        )
-        return self._prompter.confirm("Start download?", default=True)
+    def _review_plan(
+        self, videos: Sequence[VideoInfo], plan: DownloadPlan, playlist: PlaylistInfo | None
+    ) -> DownloadPlan | None:
+        """Let the user change any setting before downloading. ``None`` if they cancel."""
+        count = len(videos)
+        prompter = self._prompter
+        changes: dict[ReviewAction, Callable[[DownloadPlan], DownloadPlan]] = {
+            ReviewAction.QUALITY: lambda p: replace(p, selection=self._ask_selection(videos, p.selection)),
+            ReviewAction.DIRECTORY: lambda p: replace(
+                p, output_dir=self._choose_output_dir(playlist, p.output_dir)
+            ),
+            ReviewAction.CONTAINER: lambda p: replace(p, container=prompter.ask_container(p.container)),
+            ReviewAction.SUBTITLES: lambda p: replace(
+                p,
+                subtitles=prompter.ask_subtitles(
+                    p.subtitles,
+                    embed_possible=self._env.ffmpeg_available and not isinstance(p.selection, AudioOnly),
+                ),
+            ),
+            ReviewAction.OVERWRITE: lambda p: replace(p, overwrite=prompter.ask_overwrite(p.overwrite)),
+            ReviewAction.JOBS: lambda p: replace(p, jobs=prompter.ask_jobs(p.jobs, count)),
+        }
+        while True:
+            target = self._target_dir(plan.output_dir, playlist)
+            action = prompter.review(plan, video_count=count, target_dir=target)
+            if action is ReviewAction.START:
+                # The review menu disappears once answered; keep a record of what was started.
+                what = describe_selection(plan.selection)
+                self._console.print(
+                    f"\nDownloading [b]{plural(count, 'video')}[/] as [b]{what}[/] into "
+                    f"[b]{escape(display_path(target))}[/], {min(plan.jobs, count)} at a time."
+                )
+                return plan
+            if action is ReviewAction.CANCEL:
+                return None
+            # Esc while changing a setting keeps its value and returns to the review screen.
+            with suppress(GoBack):
+                plan = changes[action](plan)
 
     # ------------------------------------------------------------------ downloading
 
     def _build_jobs(
         self,
         videos: Sequence[VideoInfo],
-        selection: Selection,
+        plan: DownloadPlan,
         output_dir: Path,
         playlist: PlaylistInfo | None,
     ) -> list[DownloadJob]:
         settings = DownloadSettings(
             output_dir=output_dir,
-            selection=selection,
-            container=self._options.container,
-            subtitles=self._options.subtitles,
-            overwrite=self._options.overwrite,
+            selection=plan.selection,
+            container=plan.container,
+            subtitles=plan.subtitles,
+            overwrite=plan.overwrite,
         )
         playlist_size = len(playlist.entries) if playlist else None
         return [
@@ -313,21 +403,19 @@ class App:
             for video in videos
         ]
 
-    def _download(self, jobs: Sequence[DownloadJob]) -> DownloadReport:
+    def _download(self, jobs: Sequence[DownloadJob], workers: int) -> DownloadReport:
         with RichProgressReporter(self._console, total_jobs=len(jobs)) as reporter:
-            manager = DownloadManager(
-                self._client, workers=self._options.jobs, retry=self._retry, reporter=reporter
-            )
+            manager = DownloadManager(self._client, workers=workers, retry=self._retry, reporter=reporter)
             report = manager.run(jobs)
         if report.interrupted:
             self._console.print("[yellow]Interrupted. Partial downloads are kept and resume next time.")
         return report
 
-    def _recover_download_auth(self, report: DownloadReport) -> DownloadReport:
+    def _recover_download_auth(self, report: DownloadReport, workers: int) -> DownloadReport:
         needs_auth = report.failures_of_kind(ErrorKind.AUTH_REQUIRED)
         if not needs_auth or not self._reauthenticate(f"{len(needs_auth)} download(s) require sign-in."):
             return report
-        retried = self._download([result.job for result in needs_auth])
+        retried = self._download([result.job for result in needs_auth], workers)
         by_id = {result.video.id: result for result in retried.results}
         merged = [by_id.get(result.video.id, result) for result in report.results]
         return DownloadReport(merged, interrupted=retried.interrupted)
@@ -345,6 +433,15 @@ class App:
         table.add_row("[red]Failed" if failed else "Failed", str(failed))
         self._console.print()
         self._console.print(table)
-        self._console.print(f"Saved to: [b]{escape(str(output_dir))}")
+        self._console.print(f"Saved to: [b]{escape(display_path(output_dir))}")
         if report.failures_of_kind(ErrorKind.AUTH_REQUIRED):
             self._console.print(f"[dim]{AUTH_HINT}")
+
+    def _print_equivalent_command(self, mode: Mode, urls: Sequence[str], plan: DownloadPlan) -> None:
+        """Teach the flags: the one-line command that repeats this run without questions."""
+        self._console.print("\n[dim]Next time, run this to skip the questions:")
+        self._console.print(f"  {escape(equivalent_command(mode, urls, plan, self._auth))}", soft_wrap=True)
+        if len(urls) > MAX_LISTED_URLS:
+            self._console.print(
+                "[dim]  Replace URL... with your links, or put them in a file: --from-file FILE"
+            )

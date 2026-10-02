@@ -33,6 +33,14 @@ def expand_path(raw: str | os.PathLike[str]) -> Path:
     return Path(os.path.expandvars(os.path.expanduser(text))).resolve()
 
 
+def display_path(path: Path) -> str:
+    """``~/Downloads`` instead of ``/Users/me/Downloads``: shorter and the same on every machine."""
+    try:
+        return str(Path("~") / path.relative_to(Path.home()))
+    except ValueError:
+        return str(path)
+
+
 def default_download_dir() -> Path:
     """``~/Downloads`` when it exists, otherwise the current directory."""
     downloads = Path.home() / "Downloads"
