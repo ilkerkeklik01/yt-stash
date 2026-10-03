@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from urllib.parse import parse_qs, urlsplit
 
 from ytgrab.errors import UsageError
+from ytgrab.i18n import t
 from ytgrab.paths import expand_path
 
 _VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -101,13 +102,12 @@ def normalize_video_urls(raw_urls: Iterable[str]) -> list[str]:
             canonical.append(url)
 
     if invalid:
-        hint = ""
+        message = t("urls.invalid_video", listing="\n".join(f"  - {raw}" for raw in invalid))
         if any(extract_playlist_id(raw) for raw in invalid):
-            hint = "\nHint: use 'ytgrab playlist <url>' to download a playlist."
-        listing = "\n".join(f"  - {raw}" for raw in invalid)
-        raise UsageError(f"Not a valid YouTube video URL:\n{listing}{hint}")
+            message += "\n" + t("urls.hint_playlist")
+        raise UsageError(message)
     if not canonical:
-        raise UsageError("No video URL was given.")
+        raise UsageError(t("urls.no_video"))
     return canonical
 
 
@@ -119,10 +119,10 @@ def normalize_playlist_url(raw: str) -> str:
     """
     playlist_id = extract_playlist_id(raw)
     if playlist_id is None:
-        hint = ""
+        message = t("urls.invalid_playlist", url=raw)
         if extract_video_id(raw):
-            hint = "\nHint: this is a video URL; use 'ytgrab video <url>' instead."
-        raise UsageError(f"Not a valid YouTube playlist URL: {raw}{hint}")
+            message += "\n" + t("urls.hint_video")
+        raise UsageError(message)
     return canonical_playlist_url(playlist_id)
 
 
@@ -142,6 +142,6 @@ def read_url_file(raw_path: str) -> list[str]:
         # utf-8-sig drops the byte-order mark that Windows Notepad writes.
         lines = path.read_text(encoding="utf-8-sig").splitlines()
     except (OSError, UnicodeDecodeError) as exc:
-        reason = exc.strerror if isinstance(exc, OSError) else "not a UTF-8 text file"
-        raise UsageError(f"Cannot read URL file '{path}': {reason or exc}") from exc
+        reason = exc.strerror if isinstance(exc, OSError) else t("urls.not_utf8")
+        raise UsageError(t("urls.cannot_read", path=path, reason=reason or exc)) from exc
     return [url for line in lines if not line.lstrip().startswith("#") for url in split_urls(line)]

@@ -11,6 +11,7 @@ from ytgrab.concurrency import map_interruptible
 from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError
 from ytgrab.formats import resolutions_from_formats
 from ytgrab.gateway import MediaClient
+from ytgrab.i18n import t
 from ytgrab.models import PlaylistInfo, ProbeTarget, VideoInfo
 from ytgrab.retry import RetryPolicy, call_with_retry
 from ytgrab.urls import canonical_video_url
@@ -71,11 +72,9 @@ def video_from_info(info: Mapping[str, Any], target: ProbeTarget) -> VideoInfo:
     """
     live_status = info.get("live_status")
     if live_status == "is_live":
-        raise VideoError(
-            "Live stream is still in progress; download it after it ends.", ErrorKind.LIVE_IN_PROGRESS
-        )
+        raise VideoError(t("error.live_in_progress"), ErrorKind.LIVE_IN_PROGRESS)
     if live_status == "is_upcoming":
-        raise VideoError("Video is an upcoming premiere or live stream.", ErrorKind.NOT_YET_AVAILABLE)
+        raise VideoError(t("error.upcoming"), ErrorKind.NOT_YET_AVAILABLE)
 
     duration = info.get("duration")
     return VideoInfo(
@@ -121,7 +120,7 @@ class Prober:
                 )
                 return video_from_info(info, target)
             except DownloadCancelledError:
-                return ProbeFailure(target, VideoError("Cancelled.", ErrorKind.UNKNOWN))
+                return ProbeFailure(target, VideoError(t("error.cancelled"), ErrorKind.UNKNOWN))
             except VideoError as exc:
                 return ProbeFailure(target, exc)
             except Exception as exc:  # never let one odd video abort the whole batch

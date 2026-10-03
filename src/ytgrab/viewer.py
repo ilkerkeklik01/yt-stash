@@ -19,6 +19,8 @@ from prompt_toolkit.output import Output
 from prompt_toolkit.styles import Style
 from rich.console import Console, RenderableType
 
+from ytgrab.i18n import t
+
 # How long a lone Esc byte waits for the rest of a key sequence such as an arrow key.
 # prompt_toolkit's 0.5 s makes Esc feel sluggish; 0.1 s is vim's default.
 ESC_TIMEOUT = 0.1
@@ -92,8 +94,11 @@ def show_page(
     def footer() -> StyleAndTextTuples:
         shown = page.visible(body_height())
         total = len(page.lines)
-        position = f"lines {shown.start + 1}-{shown.stop} of {total}, " if len(shown) < total else ""
-        return [("class:footer", f" {position}↑↓ PgUp PgDn to scroll, Esc or q to go back")]
+        if len(shown) < total:
+            text = t("viewer.keys_at", start=shown.start + 1, stop=shown.stop, total=total)
+        else:
+            text = t("viewer.keys")
+        return [("class:footer", f" {text}")]
 
     bindings = KeyBindings()
     moves: dict[str, int | str] = {

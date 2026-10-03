@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from ytgrab import i18n
 from ytgrab.auth import AuthConfig
 from ytgrab.errors import VideoError
 from ytgrab.gateway import DownloadOutcome
@@ -24,6 +25,18 @@ from ytgrab.models import (
     VideoQuality,
 )
 from ytgrab.prompts import GoBack, ReviewAction
+
+
+@pytest.fixture(autouse=True)
+def english(tmp_path, monkeypatch):
+    """Every test starts in English, whatever the machine's language or saved settings."""
+    for name in ("YTGRAB_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr("ytgrab.cli.system_language", lambda: None)
+    monkeypatch.setattr("ytgrab.cli.config_path", lambda: tmp_path / "ytgrab-config.json")
+    i18n.set_language("en")
+    yield
+    i18n.set_language("en")
 
 
 def fmt(

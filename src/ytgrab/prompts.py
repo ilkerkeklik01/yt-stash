@@ -31,6 +31,7 @@ from ytgrab.browse import list_directory, nearest_existing_dir, quick_places
 from ytgrab.downloader import MAX_WORKERS
 from ytgrab.errors import UsageError, YtGrabError
 from ytgrab.formats import AUDIO_CODECS
+from ytgrab.i18n import LANGUAGES, get_language, t, tn
 from ytgrab.models import (
     AudioOnly,
     DownloadPlan,
@@ -77,6 +78,7 @@ class MenuAction(Enum):
     URL_FILE = "url-file"
     QUALITIES = "qualities"
     SIGN_IN = "sign-in"
+    LANGUAGE = "language"
     SETUP = "setup"
     HELP = "help"
     QUIT = "quit"
@@ -107,6 +109,7 @@ class SessionPrompter(Prompter, Protocol):
     def ask_main_menu(self, auth: AuthConfig, default: MenuAction | None = None) -> MenuAction: ...
     def ask_url_file(self) -> list[str]: ...
     def ask_next(self) -> bool: ...
+    def ask_language(self, current: str) -> str: ...
     def show_page(self, title: str, content: RenderableType) -> None: ...
 
 
@@ -119,8 +122,8 @@ def quality_choices(
     """Menu entries ``(label, selection)`` and the 1-based index of the default entry."""
     entries: list[tuple[str, Selection]] = [(o.label, VideoQuality(o.height)) for o in options]
     if not entries:
-        entries.append(("Best available", VideoQuality(None)))
-    entries += [(f"Audio only ({codec})", AudioOnly(codec)) for codec in AUDIO_CODECS]
+        entries.append((t("quality.best"), VideoQuality(None)))
+    entries += [(t("quality.audio", codec=codec), AudioOnly(codec)) for codec in AUDIO_CODECS]
 
     default_index = 1
     for index, (_label, selection) in enumerate(entries, start=1):
@@ -135,65 +138,52 @@ def render_quality_table(
 ) -> Table:
     """Table of all choices; shows per-resolution availability for multi-video batches."""
     entries, default_index = quality_choices(options, default_height)
-    table = Table(title="Available qualities", title_justify="left", show_edge=False)
+    table = Table(title=t("quality.table_title"), title_justify="left", show_edge=False)
     table.add_column("#", justify="right", style="bold")
-    table.add_column("Quality")
+    table.add_column(t("quality.column_quality"))
     if video_count > 1:
-        table.add_column("Available in", justify="right")
+        table.add_column(t("quality.column_available"), justify="right")
 
     counts = {o.height: o.video_count for o in options}
     for index, (label, selection) in enumerate(entries, start=1):
-        text = f"{label} [green](default)[/]" if index == default_index else label
+        text = f"{label} [green]{t('quality.default')}[/]" if index == default_index else label
         row = [str(index), text]
         if video_count > 1:
             if isinstance(selection, VideoQuality) and selection.height in counts:
-                row.append(f"{counts[selection.height]}/{video_count} videos")
+                row.append(t("quality.available_in", count=counts[selection.height], total=video_count))
             else:
-                row.append("all")
+                row.append(t("quality.all"))
         table.add_row(*row)
     return table
 
 
-def plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
-
-
 def describe_selection(selection: Selection) -> str:
     if isinstance(selection, AudioOnly):
-        return f"audio only ({selection.codec})"
+        return t("selection.audio", codec=selection.codec)
     if selection.height is None:
-        return "best available"
-    return f"{selection.height}p (or closest lower)"
+        return t("selection.best")
+    return t("selection.height", height=selection.height)
 
 
 def describe_subtitles(subtitles: SubtitleOptions) -> str:
     if not subtitles.enabled:
-        return "off"
-    where = "embedded in the video" if subtitles.embed else "separate files"
-    auto = ", auto-generated too" if subtitles.include_auto_generated else ""
-    return f"{', '.join(subtitles.languages)} ({where}{auto})"
-
-
-AUDIO_HINTS = {
-    "m4a": "AAC audio in .m4a. Plays on every phone, computer and car stereo.",
-    "mp3": "Converted to .mp3, for older players that don't know m4a.",
-    "opus": "YouTube's original audio codec in .opus. Smallest files at the same quality.",
-}
-CONTAINER_HINTS = {
-    "mp4": "Plays on almost every device and editor. Uses mkv for a video whose streams don't fit.",
-    "mkv": "Keeps any codec and subtitle format. Some phones and TVs can't play it.",
-    "webm": "YouTube's native web format (VP9/AV1 with Opus). Uses mkv when streams don't fit.",
-}
+        return t("subs.off")
+    auto = subtitles.include_auto_generated
+    if subtitles.embed:
+        key = "subs.embedded_auto" if auto else "subs.embedded"
+    else:
+        key = "subs.files_auto" if auto else "subs.files"
+    return t(key, languages=", ".join(subtitles.languages))
 
 
 def _quality_hint(selection: Selection, counts: dict[int, int], video_count: int) -> str | None:
     if isinstance(selection, AudioOnly):
-        return AUDIO_HINTS.get(selection.codec)
+        return t(f"hint.audio.{selection.codec}")
     if selection.height is None:
-        return "The best stream YouTube offers."
+        return t("quality.hint_best")
     count = counts.get(selection.height, video_count)
     if video_count > 1 and count < video_count:
-        return f"Available in {count} of {video_count} videos. The others get the closest lower quality."
+        return t("quality.hint_partial", count=count, total=video_count)
     return None
 
 
@@ -213,10 +203,6 @@ STYLE = questionary.Style(
 )
 QMARK = "▶"
 POINTER = "❯"  # noqa: RUF001
-SELECT_HINT = "(↑↓ to move, Enter to choose, Esc to go back)"
-MENU_HINT = "(↑↓ to move, Enter to choose)"
-TEXT_HINT = "(Esc to go back)"
-BROWSE_HINT = "(Enter opens, type to filter, Esc goes back)"
 _BACK = object()  # result of a question left with Esc
 
 
@@ -263,7 +249,7 @@ def _validator(check: Callable[[str], object]) -> Callable[[str], bool | str]:
 
 def _check_url_file(text: str) -> None:
     if not read_url_file(text):
-        raise UsageError("The file contains no links.")
+        raise UsageError(t("prompt.no_links"))
 
 
 def _fit_path(text: str, width: int = 60) -> str:
@@ -271,14 +257,14 @@ def _fit_path(text: str, width: int = 60) -> str:
     return text if len(text) <= width else "…" + text[-(width - 1) :]
 
 
-def _require(what: str) -> Callable[[str], bool | str]:
-    return lambda text: bool(text.strip()) or f"Enter {what}."
+def _require(message_key: str) -> Callable[[str], bool | str]:
+    return lambda text: bool(text.strip()) or t(message_key)
 
 
 def _check_folder_name(name: str) -> bool | str:
     name = name.strip()
     if not name or name in (".", "..") or any(sep in name for sep in "/\\"):
-        return "Enter a folder name without slashes."
+        return t("prompt.bad_folder_name")
     return True
 
 
@@ -327,7 +313,7 @@ class TerminalPrompter:
 
         In ``searchable`` menus, typing filters the entries (so j/k cannot move).
         """
-        hint = BROWSE_HINT if searchable else SELECT_HINT if can_go_back else MENU_HINT
+        hint = t("hint.browse" if searchable else "hint.select" if can_go_back else "hint.menu")
         question = questionary.select(
             message,
             choices=list(choices),
@@ -354,7 +340,7 @@ class TerminalPrompter:
         question = questionary.text(
             message,
             default=default,
-            instruction=f"{instruction[:-1]}, Esc to go back)" if instruction else TEXT_HINT,
+            instruction=t("hint.text_with", hint=instruction) if instruction else t("hint.text"),
             validate=validate,
             qmark=QMARK,
             style=STYLE,
@@ -416,25 +402,27 @@ class TerminalPrompter:
         choices: list[Choice | Separator] = []
         if not pick_files:
             choices += [
-                Choice("Save here", (_Browse.PICK, current), description=f"Save into {shown}"),
                 Choice(
-                    "New folder here…",
+                    t("browse.save_here"),
+                    (_Browse.PICK, current),
+                    description=t("browse.save_into", path=shown),
+                ),
+                Choice(
+                    t("browse.new_folder"),
                     (_Browse.NEW_FOLDER, None),
-                    description="Create a folder inside this one and open it.",
+                    description=t("browse.new_folder_desc"),
                 ),
             ]
         choices += [
-            Choice(
-                "Type a path…",
-                (_Browse.TYPE_PATH, None),
-                description="Enter a full path, e.g. ~/Videos or D:\\Videos.",
-            ),
+            Choice(t("browse.type_path"), (_Browse.TYPE_PATH, None), description=t("browse.type_path_desc")),
             Separator(" "),
         ]
         if current.parent != current:
             choices.append(
                 Choice(
-                    "..", (_Browse.UP, current.parent), description=f"Up to {display_path(current.parent)}"
+                    "..",
+                    (_Browse.UP, current.parent),
+                    description=t("browse.up", path=display_path(current.parent)),
                 )
             )
         choices += [Choice(f"{folder.name}/", (_Browse.OPEN, folder)) for folder in listing.folders]
@@ -442,13 +430,17 @@ class TerminalPrompter:
         if listing.error:
             choices.append(Separator(listing.error))
         elif not listing.folders and not listing.files:
-            choices.append(Separator("(empty folder)" if pick_files else "(no folders here)"))
-        places = [(name, path) for name, path in quick_places() if path != current]
+            choices.append(Separator(t("browse.empty_folder" if pick_files else "browse.no_folders")))
+        places = [(key, path) for key, path in quick_places() if path != current]
         if places:
             choices.append(Separator(" "))
             choices += [
-                Choice(f"Go to {name}", (_Browse.OPEN, path), description=display_path(path))
-                for name, path in places
+                Choice(
+                    t("browse.go_to", place=t(f"place.{key}")),
+                    (_Browse.OPEN, path),
+                    description=display_path(path),
+                )
+                for key, path in places
             ]
         return self._select(
             f"{title} {shown}",
@@ -459,23 +451,22 @@ class TerminalPrompter:
         )
 
     def _new_folder(self, parent: Path) -> Path:
-        name = self._text("New folder name", validate=_check_folder_name).strip()
+        name = self._text(t("browse.folder_name"), validate=_check_folder_name).strip()
         folder = parent / name
         try:
             folder.mkdir(exist_ok=True)
         except OSError as exc:
-            self._console.print(
-                f"[red]Cannot create '{escape(str(folder))}': {escape(exc.strerror or str(exc))}"
-            )
+            reason = exc.strerror or str(exc)
+            self._console.print(f"[red]{escape(t('browse.cannot_create', path=folder, reason=reason))}")
             return parent
         return folder
 
     def _typed_path(self, current: Path) -> Path:
         typed = self._text(
-            "Path",
+            t("browse.path"),
             default=display_path(current) + os.sep,
-            instruction="(~ means your home folder)",
-            validate=_require("a path"),
+            instruction=t("browse.path_hint"),
+            validate=_require("prompt.require_path"),
         )
         return expand_path(typed)
 
@@ -483,28 +474,20 @@ class TerminalPrompter:
 
     def ask_mode(self) -> Mode:
         return self._select(
-            "What do you want to download?",
+            t("mode.prompt"),
             [
-                Choice(
-                    "One or more videos",
-                    Mode.VIDEO,
-                    description="Paste one or several video links. Shorts and live replays work too.",
-                ),
-                Choice(
-                    "A whole playlist",
-                    Mode.PLAYLIST,
-                    description="Every video of a playlist, saved in a folder named after it.",
-                ),
+                Choice(t("mode.videos"), Mode.VIDEO, description=t("mode.videos_desc")),
+                Choice(t("mode.playlist"), Mode.PLAYLIST, description=t("mode.playlist_desc")),
             ],
         )
 
     def ask_urls(self, mode: Mode) -> list[str]:
         if mode is Mode.PLAYLIST:
-            answer = self._text("Playlist link", validate=_validator(normalize_playlist_url))
+            answer = self._text(t("urls.playlist_prompt"), validate=_validator(normalize_playlist_url))
             return [answer.strip()]
         answer = self._text(
-            "Video links",
-            instruction="(separate several with spaces)",
+            t("urls.video_prompt"),
+            instruction=t("urls.video_hint"),
             validate=_validator(lambda text: normalize_video_urls(split_urls(text))),
         )
         return split_urls(answer)
@@ -522,16 +505,16 @@ class TerminalPrompter:
         for index, (label, selection) in enumerate(entries, start=1):
             if isinstance(selection, AudioOnly) and selection.codec == AUDIO_CODECS[0]:
                 choices.append(Separator(" "))
-            title = f"{label} (default)" if index == default_index else label
+            title = f"{label} {t('quality.default')}" if index == default_index else label
             choices.append(
                 Choice(title, selection, description=_quality_hint(selection, counts, video_count))
             )
         values = [selection for _label, selection in entries]
         default = current if current in values else entries[default_index - 1][1]
-        return self._select("Quality", choices, default=default)
+        return self._select(t("quality.prompt"), choices, default=default)
 
     def ask_directory(self, default: Path) -> Path:
-        return self._browse("Save to", default, pick_files=False)
+        return self._browse(t("directory.prompt"), default, pick_files=False)
 
     def ask_auth(self, reason: str) -> AuthConfig | None:
         self._console.print(f"[yellow]{escape(reason)}")
@@ -543,20 +526,11 @@ class TerminalPrompter:
 
     def _ask_auth_once(self) -> AuthConfig | None:
         method = self._select(
-            "How do you want to sign in?",
+            t("sign_in.prompt"),
             [
-                Choice(
-                    "Use my browser's YouTube session",
-                    "browser",
-                    description="Reads the cookies of a browser where you are signed in to YouTube. "
-                    "Your system may ask you to allow this.",
-                ),
-                Choice(
-                    "Use a cookies.txt file",
-                    "file",
-                    description="A Netscape-format file exported with a browser extension.",
-                ),
-                Choice("Don't sign in", "skip", description="Videos that need an account are skipped."),
+                Choice(t("sign_in.browser"), "browser", description=t("sign_in.browser_desc")),
+                Choice(t("sign_in.file"), "file", description=t("sign_in.file_desc")),
+                Choice(t("sign_in.skip"), "skip", description=t("sign_in.skip_desc")),
             ],
         )
         if method == "skip":
@@ -565,78 +539,72 @@ class TerminalPrompter:
             if method == "file":
                 start = Path.home() / "Downloads"
                 check = _validator(validate_cookies_file)
-                path = self._browse("cookies.txt file", start, pick_files=True, check=check)
+                path = self._browse(t("sign_in.file_prompt"), start, pick_files=True, check=check)
                 return AuthConfig(cookies_file=validate_cookies_file(path))
             browsers = [Choice(name.capitalize(), name) for name in BROWSERS]
-            browser = self._select("Browser", browsers, "firefox")
-            profile = self._text("Browser profile", instruction="(leave empty for the default profile)")
+            browser = self._select(t("sign_in.browser_prompt"), browsers, "firefox")
+            profile = self._text(t("sign_in.profile_prompt"), instruction=t("sign_in.profile_hint"))
             return AuthConfig(browser=BrowserSpec(browser, profile.strip() or None))
 
     def review(self, plan: DownloadPlan, *, video_count: int, target_dir: Path) -> ReviewAction:
         rows = [
             (
-                "Quality",
+                t("quality.prompt"),
                 describe_selection(plan.selection),
                 ReviewAction.QUALITY,
-                "Pick another resolution, or download audio only.",
+                t("review.quality_desc"),
             ),
             (
-                "Save to",
+                t("directory.prompt"),
                 _fit_path(display_path(target_dir)),
                 ReviewAction.DIRECTORY,
-                "Choose another folder.",
+                t("review.directory_desc"),
             ),
         ]
         if not isinstance(plan.selection, AudioOnly):
             rows.append(
-                (
-                    "Video format",
-                    plan.container,
-                    ReviewAction.CONTAINER,
-                    "The file type: mp4, mkv or webm.",
-                )
+                (t("review.container"), plan.container, ReviewAction.CONTAINER, t("review.container_desc"))
             )
         rows += [
             (
-                "Subtitles",
+                t("review.subtitles"),
                 describe_subtitles(plan.subtitles),
                 ReviewAction.SUBTITLES,
-                "Download subtitles in your languages, as files or inside the video.",
+                t("review.subtitles_desc"),
             ),
             (
-                "Existing files",
-                "download again" if plan.overwrite else "skip",
+                t("review.existing"),
+                t("review.existing_replace" if plan.overwrite else "review.existing_skip"),
                 ReviewAction.OVERWRITE,
-                "What to do with videos that are already in the folder.",
+                t("review.existing_desc"),
             ),
         ]
         if video_count > 1:
             rows.append(
                 (
-                    "Parallel downloads",
-                    f"{min(plan.jobs, video_count)} at a time",
+                    t("review.jobs"),
+                    t("jobs.at_a_time", count=min(plan.jobs, video_count)),
                     ReviewAction.JOBS,
-                    "How many videos download at the same time.",
+                    t("review.jobs_desc"),
                 )
             )
 
         width = max(len(label) for label, *_ in rows) + 3
         choices: list[Choice | Separator] = [
-            Choice("Start download", ReviewAction.START, description="Choose a setting below to change it."),
+            Choice(t("review.start"), ReviewAction.START, description=t("review.start_desc")),
             Separator(" "),
             *(
                 Choice(label.ljust(width) + value, action, description=hint)
                 for label, value, action, hint in rows
             ),
             Separator(" "),
-            Choice("Cancel", ReviewAction.CANCEL, description="Don't download anything."),
+            Choice(t("review.cancel"), ReviewAction.CANCEL, description=t("review.cancel_desc")),
         ]
-        message = f"Ready to download {plural(video_count, 'video')}"
-        return self._select(message, choices, ReviewAction.START, transient=True)
+        return self._select(tn("review.prompt", video_count), choices, ReviewAction.START, transient=True)
 
     def ask_container(self, current: str) -> str:
-        choices = [Choice(name, name, description=CONTAINER_HINTS[name]) for name in CONTAINERS]
-        return self._select("Video format", choices, current)
+        choices = [Choice(name, name, description=t(f"hint.container.{name}")) for name in CONTAINERS]
+        return self._select(t("review.container"), choices, current)
 
     def ask_subtitles(self, current: SubtitleOptions, *, embed_possible: bool) -> SubtitleOptions:
         while True:  # Esc in a later step comes back to the first question
@@ -650,19 +618,15 @@ class TerminalPrompter:
             "off" if not current.enabled else "embed" if current.embed and embed_possible else "files"
         )
         how = self._select(
-            "Subtitles",
+            t("review.subtitles"),
             [
-                Choice("No subtitles", "off"),
+                Choice(t("subs.none"), "off"),
+                Choice(t("subs.as_files"), "files", description=t("subs.as_files_desc")),
                 Choice(
-                    "Save as separate files",
-                    "files",
-                    description="Subtitle files next to each video. Most players load them automatically.",
-                ),
-                Choice(
-                    "Embed in the video file",
+                    t("subs.embed"),
                     "embed",
-                    description="One file per video; turn subtitles on in your player.",
-                    disabled=None if embed_possible else "needs ffmpeg and a video download",
+                    description=t("subs.embed_desc"),
+                    disabled=None if embed_possible else t("subs.embed_disabled"),
                 ),
             ],
             current_how,
@@ -671,20 +635,16 @@ class TerminalPrompter:
             return SubtitleOptions()
         with _later_step():
             languages = self._text(
-                "Subtitle languages",
+                t("subs.languages_prompt"),
                 default=",".join(current.languages) or "en",
-                instruction="(language codes such as en,tr, or all)",
-                validate=_require("at least one language code"),
+                instruction=t("subs.languages_hint"),
+                validate=_require("prompt.require_language"),
             )
             auto = self._select(
-                "Use YouTube's auto-generated subtitles?",
+                t("subs.auto_prompt"),
                 [
-                    Choice("Only subtitles written by people", False),
-                    Choice(
-                        "Also auto-generated ones",
-                        True,
-                        description="Most videos have them, but they contain speech-recognition errors.",
-                    ),
+                    Choice(t("subs.only_human"), False),
+                    Choice(t("subs.also_auto"), True, description=t("subs.also_auto_desc")),
                 ],
                 current.include_auto_generated,
             )
@@ -692,18 +652,10 @@ class TerminalPrompter:
 
     def ask_overwrite(self, current: bool) -> bool:
         return self._select(
-            "Videos that are already in the folder",
+            t("overwrite.prompt"),
             [
-                Choice(
-                    "Skip them",
-                    False,
-                    description="Finished files are kept; interrupted downloads continue where they stopped.",
-                ),
-                Choice(
-                    "Download again and replace them",
-                    True,
-                    description="Use this to get a video you already have in another quality.",
-                ),
+                Choice(t("overwrite.skip"), False, description=t("overwrite.skip_desc")),
+                Choice(t("overwrite.replace"), True, description=t("overwrite.replace_desc")),
             ],
             current,
         )
@@ -711,55 +663,33 @@ class TerminalPrompter:
     def ask_jobs(self, current: int, video_count: int) -> int:
         top = min(MAX_WORKERS, video_count)
         choices = [
-            Choice(
-                f"{n} at a time",
-                n,
-                description="Many parallel downloads can make YouTube slow you down." if n > 4 else None,
-            )
+            Choice(t("jobs.at_a_time", count=n), n, description=t("jobs.many_desc") if n > 4 else None)
             for n in range(1, top + 1)
         ]
-        return self._select("Parallel downloads", choices, min(current, top))
+        return self._select(t("review.jobs"), choices, min(current, top))
 
     # -------------------------------------------------------------- SessionPrompter
 
     def ask_main_menu(self, auth: AuthConfig, default: MenuAction | None = None) -> MenuAction:
-        signed_in = "on" if auth.is_configured else "off"
+        # Built anew on every call, so a language change shows on the next menu.
+        sign_in = t("menu.sign_in_on" if auth.is_configured else "menu.sign_in_off")
         return self._select(
-            "What do you want to do?",
+            t("menu.prompt"),
             [
-                Choice("Download videos", MenuAction.VIDEOS, description="Paste one or more video links."),
-                Choice(
-                    "Download a playlist",
-                    MenuAction.PLAYLIST,
-                    description="Every video of a playlist, in a folder named after it.",
-                ),
-                Choice(
-                    "Download links from a text file",
-                    MenuAction.URL_FILE,
-                    description="One or more video links per line; lines starting with # are ignored.",
-                ),
-                Choice(
-                    "Show available qualities",
-                    MenuAction.QUALITIES,
-                    description="See every resolution of videos or a playlist without downloading.",
-                ),
+                Choice(t("menu.videos"), MenuAction.VIDEOS, description=t("menu.videos_desc")),
+                Choice(t("menu.playlist"), MenuAction.PLAYLIST, description=t("menu.playlist_desc")),
+                Choice(t("menu.url_file"), MenuAction.URL_FILE, description=t("menu.url_file_desc")),
+                Choice(t("menu.qualities"), MenuAction.QUALITIES, description=t("menu.qualities_desc")),
                 Separator(" "),
+                Choice(sign_in, MenuAction.SIGN_IN, description=t("menu.sign_in_desc", auth=auth.describe())),
                 Choice(
-                    f"Sign-in ({signed_in})",
-                    MenuAction.SIGN_IN,
-                    description=f"Members-only, private and age-restricted videos. Now: {auth.describe()}",
+                    t("menu.language", name=LANGUAGES[get_language()]),
+                    MenuAction.LANGUAGE,
+                    description=t("menu.language_desc"),
                 ),
-                Choice(
-                    "Check setup",
-                    MenuAction.SETUP,
-                    description="See whether ffmpeg and a JavaScript runtime are installed.",
-                ),
-                Choice(
-                    "Command-line options",
-                    MenuAction.HELP,
-                    description="Every option, for scripts and one-line commands.",
-                ),
-                Choice("Quit", MenuAction.QUIT),
+                Choice(t("menu.setup"), MenuAction.SETUP, description=t("menu.setup_desc")),
+                Choice(t("menu.help"), MenuAction.HELP, description=t("menu.help_desc")),
+                Choice(t("menu.quit"), MenuAction.QUIT),
             ],
             default,
             can_go_back=False,
@@ -767,7 +697,7 @@ class TerminalPrompter:
 
     def ask_url_file(self) -> list[str]:
         check = _validator(_check_url_file)
-        path = self._browse("Text file with links", Path.cwd(), pick_files=True, check=check)
+        path = self._browse(t("url_file.prompt"), Path.cwd(), pick_files=True, check=check)
         return read_url_file(str(path))
 
     def show_page(self, title: str, content: RenderableType) -> None:
@@ -775,19 +705,23 @@ class TerminalPrompter:
 
     def ask_next(self) -> bool:
         return self._select(
-            "What next?",
-            [Choice("Back to the main menu", True), Choice("Quit", False)],
+            t("next.prompt"),
+            [Choice(t("next.menu"), True), Choice(t("menu.quit"), False)],
         )
+
+    def ask_language(self, current: str) -> str:
+        choices = [Choice(name, code) for code, name in LANGUAGES.items()]
+        return self._select(t("language.prompt"), choices, current)
 
 
 class NonInteractivePrompter:
     """Answers every question with its default; never blocks on input."""
 
     def ask_mode(self) -> Mode:
-        raise UsageError("No mode given. Use 'ytgrab video <url>...' or 'ytgrab playlist <url>'.")
+        raise UsageError(t("prompt.no_mode"))
 
     def ask_urls(self, mode: Mode) -> list[str]:
-        raise UsageError("No URL given.")
+        raise UsageError(t("prompt.no_url"))
 
     def ask_quality(
         self,

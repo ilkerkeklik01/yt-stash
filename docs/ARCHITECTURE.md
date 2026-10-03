@@ -16,6 +16,7 @@ cli.py ──► session.py ──► app.py ───────────�
               │       └─ concurrency.py  Ctrl+C-safe thread pool │
               └─ gateway.py   MediaClient protocol + YtDlpClient ◄┘  ← the only yt-dlp API caller
 pure logic:  urls.py · formats.py · options.py · commandline.py · errors.py · paths.py · auth.py · models.py
+text:        i18n/ (en.py, tr.py catalogs) · settings.py (saved language)
 ```
 
 ## Modules
@@ -42,7 +43,9 @@ pure logic:  urls.py · formats.py · options.py · commandline.py · errors.py 
 | `progress.py` | Live progress bars. |
 | `app.py` | Orchestrates one run: probe, choose, review screen (`DownloadPlan`), download, "ask for sign-in and retry" recovery. |
 | `session.py` | Main menu shown by a bare `ytgrab`: runs one `App` per choice, keeps the sign-in between runs. |
-| `cli.py` | Argument parsing and dependency wiring. |
+| `cli.py` | Argument parsing, choice of language and dependency wiring. |
+| `i18n/` | Message catalogs (`en.py`, `tr.py`), `t()`/`tn()` lookup and the choice of language. |
+| `settings.py` | Settings kept between runs (the language chosen in the menu) as JSON in the OS config folder. |
 
 ## Key decisions
 
@@ -97,6 +100,23 @@ keeps the old value, the folder question returns to the quality question, and an
 else leaves `App.run()` so the session shows the main menu (or the CLI cancels). Menus need a terminal on stdin *and*
 stdout; otherwise ytgrab behaves as with `--yes`.
 
+**All user-visible text comes from the catalogs.** Code calls `t("key", **values)` (or
+`tn` for counts) when it shows text, never at import time, so choosing a language in the
+main menu redraws everything in it at once. Each sentence is one template: Turkish
+attaches suffixes by vowel harmony and orders words differently, so text is never built
+from translated pieces, and a value is never followed by a suffix (`Kullanılıyor: {auth}`).
+What must stay English stays out of the catalogs: yt-dlp's messages and the patterns that
+classify them (`ErrorKind` values are English; `ErrorKind.label` is the translation),
+flags, quality keywords, folder names on disk and command examples. Tests check that every
+catalog has the same keys, placeholders and markup, and that every key exists and is used.
+
+**The language is process-wide state.** Like gettext, `i18n` keeps the current language in
+one module variable instead of passing a translator to every object. It is written only on
+the main thread (at start-up, and from the main menu while nothing downloads) and only read
+by worker threads, and it is the only hidden input of the pure modules (their messages). `cli.main` chooses it before building the argument parser so `--help`
+is translated: `--lang`, `YTGRAB_LANG`, the saved choice, the system language, English.
+argparse's own words (`usage:`, `options:`) and questionary's `Description:` stay English.
+
 **Errors never abort the batch.** Every per-video problem becomes a `ProbeFailure` or a
 failed `JobResult`; the summary lists them and the exit code becomes 1.
 
@@ -104,6 +124,7 @@ failed `JobResult`; the summary lists them and the exit code becomes 1.
 
 - `tests/conftest.py` provides `FakeClient` (an in-memory `MediaClient`) and a
   `ScriptedPrompter`, so the whole workflow in `app.py` is tested without network or TTY.
+  An autouse fixture starts every test in English with no saved settings or locale.
 - `test_gateway.py` replaces `yt_dlp.YoutubeDL` with a stub to test parameter wiring,
   hooks, cancellation and error translation; cookie loading uses real yt-dlp offline.
 - `tests/test_network.py` (marker `network`, excluded by default) downloads a real

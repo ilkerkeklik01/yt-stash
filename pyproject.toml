@@ -56,3 +56,4 @@ known-local-folder = ["conftest"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501", "RUF012", "RUF001"]
+"src/ytgrab/i18n/tr.py" = ["RUF001", "RUF002"]  # Turkish letters such as ı are not typos

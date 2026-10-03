@@ -7,6 +7,7 @@ from ytgrab.cli import build_parser, main, options_from_args
 from ytgrab.errors import AuthConfigError, UsageError
 from ytgrab.models import Mode
 from ytgrab.prompts import GoBack
+from ytgrab.settings import save_setting
 
 
 def parse(*argv: str):
@@ -144,3 +145,49 @@ def test_esc_with_nothing_to_go_back_to_cancels(capsys, monkeypatch):
     monkeypatch.setattr("ytgrab.app.App.run", leave)
     assert main(["video", "https://youtu.be/dQw4w9WgXcQ", "--yes"]) == 0
     assert "Cancelled" in capsys.readouterr().out
+
+
+def test_help_in_the_chosen_language(capsys, monkeypatch, tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--help", "--lang", "tr"])
+    assert "örnekler:" in capsys.readouterr().out
+    monkeypatch.setenv("YTGRAB_LANG", "tr")
+    with pytest.raises(SystemExit):
+        main(["video", "--help"])
+    assert "bir veya daha fazla video indir" not in capsys.readouterr().out  # that is the parent's help
+    assert main(["video", "not-a-url", "--yes"]) == 2
+    assert "Geçerli bir YouTube video URL'si değil" in capsys.readouterr().out
+
+
+def error_language(capsys) -> str:
+    """Language of the error message just printed (warnings about missing ffmpeg may come first)."""
+    errors = [line for line in capsys.readouterr().out.splitlines() if line.startswith(("Error:", "Hata:"))]
+    assert len(errors) == 1
+    return "tr" if errors[0].startswith("Hata:") else "en"
+
+
+def test_language_priority(capsys, monkeypatch, tmp_path):
+    def language(*argv):
+        assert main([*argv, "video", "not-a-url", "--yes"]) == 2
+        return error_language(capsys)
+
+    save_setting(tmp_path / "ytgrab-config.json", "language", "tr")  # the file the english fixture uses
+    assert language() == "tr"  # saved choice
+    assert language("--lang", "en") == "en"  # the flag beats it
+    monkeypatch.setenv("YTGRAB_LANG", "en")
+    assert language() == "en"  # so does the environment variable
+    assert language("--lang", "tr") == "tr"
+
+
+def test_system_language_is_the_fallback(capsys, monkeypatch):
+    monkeypatch.setattr("ytgrab.cli.system_language", lambda: "tr_TR.UTF-8")
+    main(["video", "not-a-url", "--yes"])
+    assert error_language(capsys) == "tr"
+
+
+@pytest.mark.parametrize("argv", [["--lang", "xx"], ["--lang"]])
+def test_invalid_language_is_a_usage_error(argv, capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        main(argv)
+    assert excinfo.value.code == 2
+    assert "usage: ytgrab [-h]" in capsys.readouterr().err  # reported by the real parser

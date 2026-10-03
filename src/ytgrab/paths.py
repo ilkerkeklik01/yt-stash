@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 from ytgrab.errors import OutputDirectoryError
+from ytgrab.i18n import t
 
 _ILLEGAL_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _WINDOWS_RESERVED = frozenset(
@@ -54,16 +55,16 @@ def ensure_writable_directory(path: Path) -> Path:
         OutputDirectoryError: with a message explaining what is wrong.
     """
     if path.exists() and not path.is_dir():
-        raise OutputDirectoryError(f"'{path}' exists but is not a directory.")
+        raise OutputDirectoryError(t("paths.not_a_directory", path=path))
     try:
         path.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        raise OutputDirectoryError(f"Cannot create directory '{path}': {exc.strerror or exc}") from exc
+        raise OutputDirectoryError(t("paths.cannot_create", path=path, reason=exc.strerror or exc)) from exc
 
     # os.access() is unreliable on Windows and network shares, so actually try a write.
     try:
         with tempfile.TemporaryFile(dir=path):
             pass
     except OSError as exc:
-        raise OutputDirectoryError(f"Directory '{path}' is not writable: {exc.strerror or exc}") from exc
+        raise OutputDirectoryError(t("paths.not_writable", path=path, reason=exc.strerror or exc)) from exc
     return path

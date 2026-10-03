@@ -17,6 +17,7 @@ from rich.console import Console
 from ytgrab.auth import AuthConfig, BrowserSpec
 from ytgrab.downloader import DownloadJob, JobResult, JobStatus
 from ytgrab.errors import UsageError, VideoError
+from ytgrab.i18n import set_language
 from ytgrab.models import (
     AudioOnly,
     DownloadPlan,
@@ -396,3 +397,25 @@ def test_rich_reporter_prints_results():
     assert "[weird] title" in text
     assert "file.mp4" in text and "already downloaded" in text and "Video unavailable" in text
     assert "retrying in 3s" in text
+
+
+def test_language_menu():
+    with keys(DOWN * 5, ENTER) as prompter:
+        assert prompter.ask_main_menu(AuthConfig()) is MenuAction.LANGUAGE
+    with keys(DOWN, ENTER) as prompter:
+        assert prompter.ask_language("en") == "tr"
+    with keys(ENTER) as prompter:
+        assert prompter.ask_language("tr") == "tr"
+
+
+def test_turkish_progress_text():
+    set_language("tr")
+    event = ProgressEvent("id", Stage.AUDIO, downloaded_bytes=1_000_000, eta=75)
+    assert describe_progress(event) == "ses: 1.0 MB • kalan 01:15"
+    output = io.StringIO()
+    video = VideoInfo(id="abc", title="title", url="u")
+    with RichProgressReporter(Console(file=output, width=120), total_jobs=1) as reporter:
+        reporter.job_retrying(video, 1, 3, VideoError("HTTP Error 429"))
+        reporter.job_finished(JobResult(DownloadJob(video, {}), JobStatus.SKIPPED))
+    assert "3 sn sonra yeniden denenecek (deneme 2)" in output.getvalue()
+    assert "(zaten indirilmiş)" in output.getvalue()

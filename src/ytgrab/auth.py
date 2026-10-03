@@ -14,6 +14,7 @@ from pathlib import Path
 from yt_dlp.cookies import SUPPORTED_BROWSERS, SUPPORTED_KEYRINGS
 
 from ytgrab.errors import AuthConfigError
+from ytgrab.i18n import t
 from ytgrab.paths import expand_path
 
 # Same syntax as yt-dlp: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
@@ -54,17 +55,16 @@ def parse_browser_spec(spec: str) -> BrowserSpec:
     """Parse ``BROWSER[+KEYRING][:PROFILE][::CONTAINER]``, e.g. ``firefox`` or ``chrome:Profile 1``."""
     match = _BROWSER_SPEC.fullmatch(spec.strip())
     if match is None:
-        raise AuthConfigError(f"Invalid browser specification: '{spec}'.")
+        raise AuthConfigError(t("auth.invalid_spec", spec=spec))
     name = match.group("name").strip().lower()
     if name not in SUPPORTED_BROWSERS:
-        raise AuthConfigError(f"Unsupported browser '{name}'. Supported browsers: {', '.join(BROWSERS)}.")
+        raise AuthConfigError(t("auth.unsupported_browser", name=name, supported=", ".join(BROWSERS)))
     keyring = match.group("keyring")
     if keyring is not None:
         keyring = keyring.strip().upper()
         if keyring not in SUPPORTED_KEYRINGS:
-            raise AuthConfigError(
-                f"Unsupported keyring '{keyring}'. Supported: {', '.join(sorted(SUPPORTED_KEYRINGS))}."
-            )
+            supported = ", ".join(sorted(SUPPORTED_KEYRINGS))
+            raise AuthConfigError(t("auth.unsupported_keyring", keyring=keyring, supported=supported))
     return BrowserSpec(name, match.group("profile"), keyring, match.group("container"))
 
 
@@ -72,14 +72,14 @@ def validate_cookies_file(raw: str | Path) -> Path:
     """Check that ``raw`` points to a readable, non-empty file."""
     path = expand_path(raw)
     if not path.is_file():
-        raise AuthConfigError(f"Cookies file not found: '{path}'.")
+        raise AuthConfigError(t("auth.cookies_not_found", path=path))
     try:
         if path.stat().st_size == 0:
-            raise AuthConfigError(f"Cookies file is empty: '{path}'.")
+            raise AuthConfigError(t("auth.cookies_empty", path=path))
         with path.open(encoding="utf-8", errors="replace"):
             pass
     except OSError as exc:
-        raise AuthConfigError(f"Cannot read cookies file '{path}': {exc.strerror or exc}") from exc
+        raise AuthConfigError(t("auth.cookies_unreadable", path=path, reason=exc.strerror or exc)) from exc
     return path
 
 
@@ -97,10 +97,10 @@ class AuthConfig:
     def describe(self) -> str:
         parts = []
         if self.browser:
-            parts.append(f"cookies from browser '{self.browser}'")
+            parts.append(t("auth.browser", browser=self.browser))
         if self.cookies_file:
-            parts.append(f"cookies file '{self.cookies_file}'")
-        return " + ".join(parts) or "no authentication"
+            parts.append(t("auth.file", path=self.cookies_file))
+        return " + ".join(parts) or t("auth.none")
 
     @classmethod
     def from_options(cls, browser: str | None, cookies_file: str | None) -> AuthConfig:

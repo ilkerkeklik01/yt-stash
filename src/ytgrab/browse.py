@@ -6,6 +6,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ytgrab.i18n import t
+
 
 @dataclass(frozen=True)
 class Listing:
@@ -27,7 +29,7 @@ def list_directory(directory: Path, *, include_files: bool) -> Listing:
     try:
         entries = list(directory.iterdir())
     except OSError as exc:
-        return Listing(error=f"Cannot open this folder: {exc.strerror or exc}")
+        return Listing(error=t("browse.cannot_open", reason=exc.strerror or exc))
     for entry in entries:
         if entry.name.startswith("."):
             continue
@@ -50,8 +52,12 @@ def nearest_existing_dir(path: Path) -> Path:
 
 
 def quick_places(platform: str = sys.platform) -> list[tuple[str, Path]]:
-    """Folders worth one keystroke: home, downloads, desktop and the videos folder."""
+    """Folders worth one keystroke: home, downloads, desktop and the videos folder.
+
+    Each comes with the key of its label (``place.<key>``): folder names on disk are English
+    on every system, while the label follows the user's language.
+    """
     home = Path.home()
     videos = "Movies" if platform == "darwin" else "Videos"
-    places = [("Home", home), *((name, home / name) for name in ("Downloads", "Desktop", videos))]
-    return [(name, path) for name, path in places if path.is_dir()]
+    places = [("home", home), *((name.lower(), home / name) for name in ("Downloads", "Desktop", videos))]
+    return [(key, path) for key, path in places if path.is_dir()]
