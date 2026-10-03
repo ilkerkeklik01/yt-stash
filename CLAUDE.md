@@ -21,7 +21,9 @@ ruff check . && ruff format --check .    # lint + format check (line length 110)
 ruff format .                            # apply formatting
 ```
 
-CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13, plus a smoke test `ytgrab --version && ytgrab video --help`. Code must stay compatible with Python 3.10 and Windows.
+Without an activated venv, call `.venv/bin/python`, `.venv/bin/pytest`, `.venv/bin/ruff` and `.venv/bin/ytgrab` directly.
+
+CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13, plus a smoke test `ytgrab --version && ytgrab video --help`. Code must stay compatible with Python 3.10 and Windows. Python 3.10 has no PEP 701: inside an f-string, use the other quote style (`f"{t('key')}"`).
 
 The version lives in `src/ytgrab/__init__.py` (read by hatchling).
 
@@ -50,3 +52,11 @@ Invariants that span multiple files:
 - `test_gateway.py` stubs `yt_dlp.YoutubeDL` to test parameter wiring, hooks, cancellation and error translation.
 - `test_ui.py` drives `TerminalPrompter` with real key presses via prompt_toolkit pipe input.
 - Network tests must be marked `@pytest.mark.network` (`--strict-markers` is on).
+
+## Gotchas
+
+- Running `ytgrab` by hand reads and writes the real settings file (`~/Library/Application Support/ytgrab/config.json` on macOS). Set `HOME` (and `XDG_CONFIG_HOME`/`APPDATA`) to a temp dir. When testing locale detection, unset `LC_ALL`, which outranks `LANG`.
+- Interactive menus need a TTY on stdin and stdout; to drive the real app from a script, use Python's `pty.fork()` and send key escapes (`\x1b[B` is ↓, `\r` is Enter).
+- Catalog strings longer than 110 characters are split with implicit concatenation; `i18n/tr.py` is exempt from RUF001/RUF002, because `ı` is a real letter.
+- The `conftest` fixture patches `ytgrab.cli.system_language` and `ytgrab.cli.config_path` by name, so keep importing them into `cli.py` with `from … import`.
+- argparse's `usage:`/`options:` and questionary's `Description:` prefix are hard-coded English in those libraries, not missing catalog keys.
