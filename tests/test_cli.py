@@ -159,23 +159,30 @@ def test_help_in_the_chosen_language(capsys, monkeypatch, tmp_path):
     assert "Geçerli bir YouTube video URL'si değil" in capsys.readouterr().out
 
 
+def error_language(capsys) -> str:
+    """Language of the error message just printed (warnings about missing ffmpeg may come first)."""
+    errors = [line for line in capsys.readouterr().out.splitlines() if line.startswith(("Error:", "Hata:"))]
+    assert len(errors) == 1
+    return "tr" if errors[0].startswith("Hata:") else "en"
+
+
 def test_language_priority(capsys, monkeypatch, tmp_path):
-    def error_text(*argv):
-        main([*argv, "video", "not-a-url", "--yes"])
-        return capsys.readouterr().out
+    def language(*argv):
+        assert main([*argv, "video", "not-a-url", "--yes"]) == 2
+        return error_language(capsys)
 
     save_setting(tmp_path / "ytgrab-config.json", "language", "tr")  # the file the english fixture uses
-    assert error_text().startswith("Hata:")  # saved choice
-    assert error_text("--lang", "en").startswith("Error:")  # the flag beats it
+    assert language() == "tr"  # saved choice
+    assert language("--lang", "en") == "en"  # the flag beats it
     monkeypatch.setenv("YTGRAB_LANG", "en")
-    assert error_text().startswith("Error:")  # so does the environment variable
-    assert error_text("--lang", "tr").startswith("Hata:")
+    assert language() == "en"  # so does the environment variable
+    assert language("--lang", "tr") == "tr"
 
 
 def test_system_language_is_the_fallback(capsys, monkeypatch):
     monkeypatch.setattr("ytgrab.cli.system_language", lambda: "tr_TR.UTF-8")
     main(["video", "not-a-url", "--yes"])
-    assert capsys.readouterr().out.startswith("Hata:")
+    assert error_language(capsys) == "tr"
 
 
 @pytest.mark.parametrize("argv", [["--lang", "xx"], ["--lang"]])
