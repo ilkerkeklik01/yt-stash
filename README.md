@@ -179,13 +179,28 @@ ytgrab video URL --cookies-from-browser firefox
 ytgrab video URL --cookies-from-browser "chrome:Profile 1"      # a specific profile
 ytgrab playlist URL --cookies-from-browser edge
 ytgrab video URL --cookies ~/cookies.txt                         # exported cookies file
+ytgrab video URL --paste-cookies                                 # paste them, used once
 ```
 
 Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale.
 Full syntax: `BROWSER[+KEYRING][:PROFILE][::CONTAINER]` (same as yt-dlp).
 
 If you don't pass any of these and a video turns out to need sign-in, ytgrab **asks you**
-(interactive mode) for a browser or cookies file and retries just those videos.
+(interactive mode) for a browser, a cookies file or pasted cookies, and retries just those videos.
+
+**Paste cookies (used once, never saved)** — nothing is stored on disk:
+
+1. In your browser, open youtube.com (signed in), then the developer tools (F12) →
+   **Network** tab, reload, click any request to `www.youtube.com`, and under *Request
+   Headers* copy the value of **cookie**. (The Console's `document.cookie` misses the
+   sign-in cookies, which are HttpOnly.) The content of a `cookies.txt` file works too.
+2. Choose *Sign-in → Paste cookies* in the menu (or pass `--paste-cookies`) and paste.
+   The input is not shown on screen; only its length is.
+3. The cookies stay in memory for that one download run and are discarded when it ends,
+   whatever the outcome; the next download asks again. Clear your clipboard afterwards.
+
+For scripts, pipe them in instead of typing: `pbpaste | ytgrab video URL --paste-cookies --yes`
+(`Get-Clipboard |` on Windows, `xclip -o |` on Linux).
 
 Tip — download all members-only videos of a channel: take the channel id (`UCxxxx…`),
 replace the `UC` prefix with `UUMO`, and use it as a playlist:
@@ -255,6 +270,7 @@ subtitles:
 authentication:
   --cookies-from-browser BROWSER[+KEYRING][:PROFILE][::CONTAINER]
   --cookies FILE
+  --paste-cookies           paste cookies (or pipe them to stdin); used once, never saved
 execution:
   -j, --jobs N              parallel downloads, 1-16 (default 3)
   -y, --yes                 never ask questions

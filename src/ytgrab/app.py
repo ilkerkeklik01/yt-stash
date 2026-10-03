@@ -124,7 +124,16 @@ class App:
     # ------------------------------------------------------------------ workflow
 
     def run(self) -> int:
-        """Execute the whole workflow and return the process exit code."""
+        """Execute the whole workflow and return the process exit code.
+
+        Pasted cookies are for one run: they are discarded when it ends, however it ends.
+        """
+        try:
+            return self._run()
+        finally:
+            self._discard_pasted_cookies()
+
+    def _run(self) -> int:
         if self._check_environment:
             for warning in environment_warnings(self._env):
                 self._console.print(warning)
@@ -158,6 +167,16 @@ class App:
         if self._interactive and not report.interrupted:
             self._print_equivalent_command(mode, urls, plan)
         return self._exit_code(report, probe.failures)
+
+    def _discard_pasted_cookies(self) -> None:
+        pasted = {auth.pasted for auth in (self._options.auth, self._auth) if auth.pasted}
+        if not any(not cookies.discarded for cookies in pasted):
+            return
+        for cookies in pasted:
+            cookies.discard()
+        self._auth = AuthConfig()
+        self._connected_client = None  # its copy of the cookies goes with it
+        self._console.print(f"[dim]{t('app.pasted_discarded')}")
 
     @staticmethod
     def _exit_code(report: DownloadReport, probe_failures: Sequence[ProbeFailure]) -> int:

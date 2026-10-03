@@ -20,13 +20,21 @@ import questionary
 from prompt_toolkit.input import Input
 from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent, merge_key_bindings
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.layout.processors import Processor, Transformation, TransformationInput
 from prompt_toolkit.output import Output
 from questionary import Choice, Question, Separator
 from rich.console import Console, RenderableType
 from rich.markup import escape
 from rich.table import Table
 
-from ytgrab.auth import BROWSERS, AuthConfig, BrowserSpec, validate_cookies_file
+from ytgrab.auth import (
+    BROWSERS,
+    AuthConfig,
+    BrowserSpec,
+    PastedCookies,
+    parse_pasted_cookies,
+    validate_cookies_file,
+)
 from ytgrab.browse import list_directory, nearest_existing_dir, quick_places
 from ytgrab.downloader import MAX_WORKERS
 from ytgrab.errors import UsageError, YtGrabError
@@ -234,6 +242,37 @@ def _esc_goes_back(question: Question) -> Question:
     return question
 
 
+# Stands for a pasted line break, so a multi-line paste stays in the one-line input.
+_LINE_BREAK = "\x1e"
+
+
+class _Concealed(Processor):
+    """Shows how many characters were entered instead of the secret itself."""
+
+    def apply_transformation(self, transformation_input: TransformationInput) -> Transformation:
+        size = len(transformation_input.document.text)
+        shown = t("sign_in.paste_size", count=size) if size else ""
+        return Transformation(
+            [("class:answer", shown)],
+            source_to_display=lambda _position: len(shown),
+            display_to_source=lambda _position: size,
+        )
+
+
+def _keep_pasted_lines(question: Question) -> Question:
+    """Insert a multi-line paste into ``question`` as one line instead of answering at its first line."""
+    bindings = KeyBindings()
+
+    @bindings.add(Keys.BracketedPaste)
+    def _paste(event: KeyPressEvent) -> None:
+        text = event.data.replace("\r\n", "\n").replace("\r", "\n")
+        event.current_buffer.insert_text(text.replace("\n", _LINE_BREAK))
+
+    app = question.application
+    app.key_bindings = merge_key_bindings([app.key_bindings, bindings]) if app.key_bindings else bindings
+    return question
+
+
 def _validator(check: Callable[[str], object]) -> Callable[[str], bool | str]:
     """Adapt a function raising :class:`YtGrabError` to questionary's validate callback."""
 
@@ -336,7 +375,9 @@ class TerminalPrompter:
         default: str = "",
         instruction: str | None = None,
         validate: Callable[[str], bool | str] | None = None,
+        secret: bool = False,
     ) -> str:
+        """Text input. A ``secret`` is never shown: only its length, and pasted lines stay one answer."""
         question = questionary.text(
             message,
             default=default,
@@ -344,9 +385,10 @@ class TerminalPrompter:
             validate=validate,
             qmark=QMARK,
             style=STYLE,
+            **({"input_processors": [_Concealed()]} if secret else {}),
             **self._io,
         )
-        return self._ask(question)
+        return self._ask(_keep_pasted_lines(question) if secret else question)
 
     def _browse(
         self,
@@ -530,12 +572,15 @@ class TerminalPrompter:
             [
                 Choice(t("sign_in.browser"), "browser", description=t("sign_in.browser_desc")),
                 Choice(t("sign_in.file"), "file", description=t("sign_in.file_desc")),
+                Choice(t("sign_in.paste"), "paste", description=t("sign_in.paste_desc")),
                 Choice(t("sign_in.skip"), "skip", description=t("sign_in.skip_desc")),
             ],
         )
         if method == "skip":
             return None
         with _later_step():
+            if method == "paste":
+                return AuthConfig(pasted=self.ask_pasted_cookies())
             if method == "file":
                 start = Path.home() / "Downloads"
                 check = _validator(validate_cookies_file)
@@ -545,6 +590,20 @@ class TerminalPrompter:
             browser = self._select(t("sign_in.browser_prompt"), browsers, "firefox")
             profile = self._text(t("sign_in.profile_prompt"), instruction=t("sign_in.profile_hint"))
             return AuthConfig(browser=BrowserSpec(browser, profile.strip() or None))
+
+    def ask_pasted_cookies(self) -> PastedCookies:
+        """Cookies pasted into the terminal; they are not shown on screen."""
+
+        def parse(text: str) -> PastedCookies:
+            return parse_pasted_cookies(text.replace(_LINE_BREAK, "\n"))
+
+        answer = self._text(
+            t("sign_in.paste_prompt"),
+            instruction=t("sign_in.paste_hint"),
+            validate=_validator(parse),
+            secret=True,
+        )
+        return parse(answer)
 
     def review(self, plan: DownloadPlan, *, video_count: int, target_dir: Path) -> ReviewAction:
         rows = [

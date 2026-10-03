@@ -10,7 +10,7 @@ import pytest
 from yt_dlp.utils import DownloadCancelled, DownloadError
 
 from ytgrab import gateway
-from ytgrab.auth import AuthConfig
+from ytgrab.auth import AuthConfig, parse_pasted_cookies
 from ytgrab.environment import Environment
 from ytgrab.errors import AuthConfigError, DownloadCancelledError, ErrorKind, VideoError
 from ytgrab.gateway import YtDlpClient, load_auth_cookies
@@ -186,3 +186,13 @@ def test_load_auth_cookies_invalid_file(tmp_path, monkeypatch):
     cookie_file.write_text("this is not a cookie file\twith\ttabs\n", encoding="utf-8")
     with pytest.raises(AuthConfigError):
         load_auth_cookies(AuthConfig(cookies_file=cookie_file))
+
+
+def test_load_pasted_cookies_in_memory(tmp_path, monkeypatch):
+    monkeypatch.undo()  # the real yt-dlp: no network involved
+    monkeypatch.chdir(tmp_path)
+    auth = AuthConfig(pasted=parse_pasted_cookies("SID=secret; HSID=other"))
+    cookies = load_auth_cookies(auth)
+    assert cookies.youtube_cookie_count == 2
+    assert "SID\tsecret" in cookies.text
+    assert list(tmp_path.iterdir()) == []  # nothing was written to disk
