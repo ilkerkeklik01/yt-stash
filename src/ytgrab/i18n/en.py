@@ -32,6 +32,8 @@ MESSAGES: dict[str, str] = {
     "cli.help.cookies_from_browser": "use the signed-in session of a browser, e.g. 'firefox' or "
     "'chrome:Profile 1'",
     "cli.help.cookies": "Netscape-format cookies.txt file",
+    "cli.help.paste_cookies": "paste cookies into the terminal (or pipe them to stdin): a browser's Cookie "
+    "header or a cookies.txt file's content; used for this run only, never saved",
     "cli.help.jobs": "parallel downloads, 1-{max} (default: {default})",
     "cli.help.yes": "never ask questions; use flags or defaults (implied when not in a terminal)",
     "cli.help.list_qualities": "only show available qualities, do not download",
@@ -47,6 +49,7 @@ MESSAGES: dict[str, str] = {
     "cli.jobs_range": "must be between 1 and {max}",
     "cli.audio_and_quality": "--audio-only and --quality cannot be combined.",
     "cli.subs_needed": "--auto-subs/--embed-subs need --subs LANGS (e.g. --subs en).",
+    "cli.paste_combined": "--paste-cookies cannot be combined with --cookies or --cookies-from-browser.",
     "cli.error": "[red]Error:[/] {message}",
     "cli.input_ended": "input ended unexpectedly.",
     "cli.interrupted": "Interrupted.",
@@ -84,6 +87,11 @@ MESSAGES: dict[str, str] = {
     "auth.browser": "cookies from browser '{browser}'",
     "auth.file": "cookies file '{path}'",
     "auth.none": "no authentication",
+    "auth.pasted.one": "{count} pasted cookie (for this download only)",
+    "auth.pasted.other": "{count} pasted cookies (for this download only)",
+    "auth.paste_empty": "Nothing was pasted.",
+    "auth.paste_invalid": "No cookies found in what was pasted. Paste the Cookie header (name=value; …) or "
+    "the content of a cookies.txt file.",
     "paths.not_a_directory": "'{path}' exists but is not a directory.",
     "paths.cannot_create": "Cannot create directory '{path}': {reason}",
     "paths.not_writable": "Directory '{path}' is not writable: {reason}",
@@ -166,12 +174,18 @@ MESSAGES: dict[str, str] = {
     "Your system may ask you to allow this.",
     "sign_in.file": "Use a cookies.txt file",
     "sign_in.file_desc": "A Netscape-format file exported with a browser extension.",
+    "sign_in.paste": "Paste cookies (used once, never saved)",
+    "sign_in.paste_desc": "Paste the Cookie header of a youtube.com request from your browser's developer "
+    "tools, or the content of a cookies.txt file. Forgotten when the download ends.",
     "sign_in.skip": "Don't sign in",
     "sign_in.skip_desc": "Videos that need an account are skipped.",
     "sign_in.file_prompt": "cookies.txt file",
     "sign_in.browser_prompt": "Browser",
     "sign_in.profile_prompt": "Browser profile",
     "sign_in.profile_hint": "leave empty for the default profile",
+    "sign_in.paste_prompt": "Paste cookies",
+    "sign_in.paste_hint": "not shown on screen, Enter to confirm",
+    "sign_in.paste_size": "[{count} characters]",
     "review.prompt.one": "Ready to download {count} video",
     "review.prompt.other": "Ready to download {count} videos",
     "review.start": "Start download",
@@ -267,6 +281,8 @@ MESSAGES: dict[str, str] = {
     "app.saved_to": "Saved to: [b]{path}",
     "app.next_time": "Next time, run this to skip the questions:",
     "app.replace_urls": "Replace URL... with your links, or put them in a file: --from-file FILE",
+    "app.pasted_discarded": "The pasted cookies were discarded. Clear your clipboard if they are still in "
+    "it.",
     # ------------------------------------------------------------------ main menu session
     "session.tagline": "Download YouTube videos and playlists",
     "session.sign_in_reason": "Members-only, private and age-restricted videos need your signed-in YouTube "

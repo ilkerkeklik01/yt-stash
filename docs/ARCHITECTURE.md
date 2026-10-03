@@ -84,6 +84,14 @@ that as `already_present`. Unlike an id-based archive this naturally distinguish
 from video downloads and re-downloads deleted files. `final_ext` is set for audio
 extraction so converted files (e.g. `.mp3`) are recognised.
 
+**Pasted cookies live for one run.** `AuthConfig.pasted` holds cookies pasted into the
+terminal (a `Cookie` header or `cookies.txt` content, normalised to Netscape text in
+`auth.parse_pasted_cookies`). They reach yt-dlp as an in-memory file, are never cached by
+the CLI's cookie loader, never appear in `repr`, messages or the repeat command (which says
+`--paste-cookies`), and `App.run` discards them when it ends, however it ends, so the
+session asks again. The prompt shows only their length. Python can't wipe a string's
+memory; dropping every reference is the best it can do.
+
 **yt-dlp boundary.** Only `gateway.py` calls yt-dlp's API. `auth.py` additionally imports
 yt-dlp's lists of supported browsers/keyrings so validation never drifts from yt-dlp.
 

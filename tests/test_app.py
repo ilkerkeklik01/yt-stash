@@ -9,7 +9,7 @@ import pytest
 from rich.console import Console
 
 from ytgrab.app import App, RunOptions
-from ytgrab.auth import AuthConfig, BrowserSpec
+from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
 from ytgrab.environment import Environment
 from ytgrab.errors import AuthConfigError, OutputDirectoryError, UsageError, VideoError
 from ytgrab.gateway import LoadedCookies
@@ -70,6 +70,7 @@ class Harness:
             interactive=self.interactive,
             retry=RetryPolicy(attempts=2, base_delay=0),
         )
+        self.app = app
         return app.run()
 
     @property
@@ -561,3 +562,43 @@ def test_esc_on_sign_in_question_skips_sign_in(tmp_path):
     assert harness.run(mode=Mode.VIDEO, urls=(vid(1), vid(2))) == 1
     assert prompter.asked.count("auth") == 1
     assert downloaded_ids(client) == [vid(1)]
+
+
+def test_pasted_cookies_are_discarded_after_the_download(tmp_path):
+    pasted = parse_pasted_cookies("SID=secret")
+    authed = videos_client(vid(1))
+    harness = Harness(tmp_path, FakeClient(), authed_client=authed)
+
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1),), auth=AuthConfig(pasted=pasted)) == 0
+
+    assert downloaded_ids(authed) == [vid(1)]
+    assert pasted.discarded
+    assert harness.app.auth == AuthConfig()  # nothing left for a session to keep
+    assert "--paste-cookies" in harness.text  # the repeat command asks for them again
+    assert "pasted cookies were discarded" in harness.text
+
+
+def test_pasted_cookies_are_discarded_however_the_run_ends(tmp_path):
+    pasted = parse_pasted_cookies("SID=secret")
+    prompter = ScriptedPrompter(directory=tmp_path, escape_at=["quality"])
+    harness = Harness(tmp_path, videos_client(vid(1)), prompter)
+    with pytest.raises(GoBack):
+        harness.run(mode=Mode.VIDEO, urls=(vid(1),), auth=AuthConfig(pasted=pasted))
+    assert pasted.discarded
+
+
+def test_cookies_pasted_during_the_run_are_discarded_at_its_end(tmp_path):
+    client = videos_client()
+    client.videos[url_of(vid(1))] = VideoError(MEMBERS_ONLY)
+    pasted = parse_pasted_cookies("SID=secret")
+    prompter = ScriptedPrompter(directory=tmp_path, auth_answers=[AuthConfig(pasted=pasted)])
+    harness = Harness(tmp_path, client, prompter, authed_client=videos_client(vid(1)))
+    assert harness.run(mode=Mode.VIDEO, urls=(vid(1),)) == 0
+    assert pasted.discarded and harness.app.auth == AuthConfig()
+
+
+def test_other_sign_ins_are_kept(tmp_path):
+    harness = Harness(tmp_path, FakeClient(), authed_client=videos_client(vid(1)))
+    harness.run(mode=Mode.VIDEO, urls=(vid(1),), auth=FIREFOX)
+    assert harness.app.auth == FIREFOX
+    assert "discarded" not in harness.text

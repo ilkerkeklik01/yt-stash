@@ -33,6 +33,9 @@ MESSAGES: dict[str, str] = {
     "cli.help.cookies_from_browser": "bir tarayıcıdaki açık oturumu kullan, örneğin 'firefox' ya da "
     "'chrome:Profile 1'",
     "cli.help.cookies": "Netscape biçiminde cookies.txt dosyası",
+    "cli.help.paste_cookies": "çerezleri terminale yapıştırın (ya da stdin'e yönlendirin): bir tarayıcının "
+    "Cookie başlığı ya da bir cookies.txt dosyasının içeriği; yalnızca bu çalıştırmada kullanılır, "
+    "kaydedilmez",
     "cli.help.jobs": "paralel indirme sayısı, 1-{max} (varsayılan: {default})",
     "cli.help.yes": "hiç soru sorma; seçenekleri veya varsayılanları kullan (terminal dışında hep böyledir)",
     "cli.help.list_qualities": "yalnızca mevcut kaliteleri göster, indirme",
@@ -48,6 +51,7 @@ MESSAGES: dict[str, str] = {
     "cli.jobs_range": "1 ile {max} arasında olmalı",
     "cli.audio_and_quality": "--audio-only ve --quality birlikte kullanılamaz.",
     "cli.subs_needed": "--auto-subs/--embed-subs için --subs LANGS gerekir (örneğin --subs tr).",
+    "cli.paste_combined": "--paste-cookies, --cookies veya --cookies-from-browser ile birlikte kullanılamaz.",
     "cli.error": "[red]Hata:[/] {message}",
     "cli.input_ended": "girdi beklenmedik şekilde sona erdi.",
     "cli.interrupted": "Yarıda kesildi.",
@@ -85,6 +89,11 @@ MESSAGES: dict[str, str] = {
     "auth.browser": "'{browser}' tarayıcısının çerezleri",
     "auth.file": "'{path}' çerez dosyası",
     "auth.none": "oturum açılmadı",
+    "auth.pasted.one": "yapıştırılan {count} çerez (yalnızca bu indirme için)",
+    "auth.pasted.other": "yapıştırılan {count} çerez (yalnızca bu indirme için)",
+    "auth.paste_empty": "Hiçbir şey yapıştırılmadı.",
+    "auth.paste_invalid": "Yapıştırılan metinde çerez bulunamadı. Cookie başlığını (ad=değer; …) ya da bir "
+    "cookies.txt dosyasının içeriğini yapıştırın.",
     "paths.not_a_directory": "'{path}' var ama bir klasör değil.",
     "paths.cannot_create": "Klasör oluşturulamıyor: '{path}': {reason}",
     "paths.not_writable": "Klasöre yazılamıyor: '{path}': {reason}",
@@ -167,12 +176,18 @@ MESSAGES: dict[str, str] = {
     "Sisteminiz buna izin vermenizi isteyebilir.",
     "sign_in.file": "Bir cookies.txt dosyası kullan",
     "sign_in.file_desc": "Bir tarayıcı eklentisiyle dışa aktarılmış, Netscape biçiminde bir dosya.",
+    "sign_in.paste": "Çerezleri yapıştır (bir kez kullanılır, kaydedilmez)",
+    "sign_in.paste_desc": "Tarayıcınızın geliştirici araçlarından bir youtube.com isteğinin Cookie başlığını "
+    "ya da bir cookies.txt dosyasının içeriğini yapıştırın. İndirme bitince unutulur.",
     "sign_in.skip": "Oturum açmadan devam et",
     "sign_in.skip_desc": "Hesap gerektiren videolar atlanır.",
     "sign_in.file_prompt": "cookies.txt dosyası",
     "sign_in.browser_prompt": "Tarayıcı",
     "sign_in.profile_prompt": "Tarayıcı profili",
     "sign_in.profile_hint": "varsayılan profil için boş bırakın",
+    "sign_in.paste_prompt": "Çerezleri yapıştırın",
+    "sign_in.paste_hint": "ekranda gösterilmez, onaylamak için Enter",
+    "sign_in.paste_size": "[{count} karakter]",
     "review.prompt.one": "{count} video indirilmeye hazır",
     "review.prompt.other": "{count} video indirilmeye hazır",
     "review.start": "İndirmeyi başlat",
@@ -274,6 +289,7 @@ MESSAGES: dict[str, str] = {
     "app.next_time": "Bir dahaki sefere soruları atlamak için şunu çalıştırın:",
     "app.replace_urls": "URL... yerine bağlantılarınızı yazın ya da onları bir dosyaya koyun: --from-file "
     "FILE",
+    "app.pasted_discarded": "Yapıştırılan çerezler silindi. Hâlâ panonuzdaysa panonuzu temizleyin.",
     # ------------------------------------------------------------------ main menu session
     "session.tagline": "YouTube videolarını ve oynatma listelerini indirin",
     "session.sign_in_reason": "Üyelere özel, gizli ve yaş kısıtlamalı videolar için YouTube hesabınızda "

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab.auth import AuthConfig, BrowserSpec
+from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
 from ytgrab.commandline import equivalent_command
 from ytgrab.models import AudioOnly, DownloadPlan, Mode, SubtitleOptions, VideoQuality
 
@@ -84,3 +84,9 @@ def test_windows_quoting(monkeypatch):
     monkeypatch.setattr("sys.platform", "win32")
     command = equivalent_command(Mode.VIDEO, [URL], plan(), AuthConfig())
     assert f"ytgrab video {URL} -q 1080" in command and '"' in command
+
+
+def test_pasted_cookies_are_asked_again_not_shown():
+    auth = AuthConfig(pasted=parse_pasted_cookies("SID=secret"))
+    command = equivalent_command(Mode.VIDEO, [URL], plan(), auth)
+    assert "--paste-cookies" in command and "secret" not in command

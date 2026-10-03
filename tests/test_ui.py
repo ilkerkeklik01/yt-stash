@@ -4,14 +4,17 @@ Prompts are driven with real key presses through prompt_toolkit's pipe input.
 """
 
 import io
+import re
 import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from prompt_toolkit.data_structures import Size
 from prompt_toolkit.input import create_pipe_input
 from prompt_toolkit.output import DummyOutput
+from prompt_toolkit.output.vt100 import Vt100_Output
 from rich.console import Console
 
 from ytgrab.auth import AuthConfig, BrowserSpec
@@ -204,7 +207,7 @@ def test_ask_auth_browser_with_profile():
 
 
 def test_ask_auth_skip():
-    with keys(DOWN, DOWN, ENTER) as prompter:
+    with keys(DOWN, DOWN, DOWN, ENTER) as prompter:
         assert prompter.ask_auth("why") is None
 
 
@@ -318,8 +321,8 @@ def test_esc_in_later_step_returns_to_first_step():
     # Subtitles: files -> Esc on languages -> back to "how", which starts on "off" again
     with keys(DOWN, ENTER, ESC, ENTER) as prompter:
         assert prompter.ask_subtitles(SubtitleOptions(), embed_possible=True) == SubtitleOptions()
-    # Sign-in: browser -> Esc on browser list -> back to method -> skip
-    with keys(ENTER, ESC, DOWN, DOWN, ENTER) as prompter:
+    # Sign-in: browser -> Esc on browser list -> back to method -> skip (fourth entry)
+    with keys(ENTER, ESC, DOWN, DOWN, DOWN, ENTER) as prompter:
         assert prompter.ask_auth("why") is None
 
 
@@ -419,3 +422,37 @@ def test_turkish_progress_text():
         reporter.job_finished(JobResult(DownloadJob(video, {}), JobStatus.SKIPPED))
     assert "3 sn sonra yeniden denenecek (deneme 2)" in output.getvalue()
     assert "(zaten indirilmiş)" in output.getvalue()
+
+
+PASTE_START, PASTE_END = "\x1b[200~", "\x1b[201~"  # how terminals wrap pasted text
+SECRET = "AKfycb-secret-value"
+
+
+def test_paste_cookies_is_a_sign_in_method():
+    with keys(DOWN, DOWN, ENTER, f"SID={SECRET}; HSID=x", ENTER) as prompter:
+        auth = prompter.ask_auth("why")
+    assert auth.pasted.count == 2 and f"SID\t{SECRET}" in auth.pasted.netscape
+
+
+def test_multi_line_paste_is_one_answer_and_bad_pastes_are_rejected():
+    cookies_txt = f"# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\t{SECRET}\n"
+    with keys(
+        ENTER,
+        PASTE_START + "nonsense" + PASTE_END,
+        ENTER,
+        CLEAR,
+        PASTE_START + cookies_txt + PASTE_END,
+        ENTER,
+    ) as prompter:
+        assert prompter.ask_pasted_cookies().count == 1
+
+
+def test_pasted_cookies_are_never_shown():
+    screen = io.StringIO()
+    output = Vt100_Output(screen, lambda: Size(rows=24, columns=200), term="xterm")
+    with create_pipe_input() as pipe:
+        pipe.send_text(PASTE_START + f"SID={SECRET};\nHSID=x" + PASTE_END + ENTER)
+        prompter = TerminalPrompter(Console(file=io.StringIO()), input=pipe, output=output)
+        assert prompter.ask_pasted_cookies().count == 2
+    assert SECRET not in screen.getvalue()
+    assert re.search(r"\[\d+ characters\]", screen.getvalue())

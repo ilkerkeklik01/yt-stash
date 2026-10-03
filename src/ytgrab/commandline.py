@@ -53,5 +53,7 @@ def equivalent_command(mode: Mode, urls: Sequence[str], plan: DownloadPlan, auth
         argv += ["--cookies-from-browser", str(auth.browser)]
     if auth.cookies_file:
         argv += ["--cookies", display_path(auth.cookies_file)]
+    if auth.pasted:
+        argv.append("--paste-cookies")  # asks again: pasted cookies are never stored
     argv.append("--yes")
     return _join(argv)

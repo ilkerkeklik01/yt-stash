@@ -134,7 +134,10 @@ class Session:
             self._prompter.show_page(t("session.page_help"), help_text)
         elif action is MenuAction.SIGN_IN:
             try:
+                previous = self._auth
                 self._auth = self._prompter.ask_auth(t("session.sign_in_reason")) or AuthConfig()
+                if previous.pasted and previous != self._auth:
+                    previous.pasted.discard()  # replaced before it was used
             except GoBack:
                 pass  # keep the current sign-in
             except YtGrabError as error:

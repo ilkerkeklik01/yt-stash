@@ -6,7 +6,8 @@ import argparse
 import functools
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -14,13 +15,13 @@ from rich.console import Console
 from rich.markup import escape
 
 from ytgrab import __version__
-from ytgrab.app import App, RunOptions
-from ytgrab.auth import AuthConfig
+from ytgrab.app import App, CookieLoader, RunOptions
+from ytgrab.auth import AuthConfig, PastedCookies, parse_pasted_cookies
 from ytgrab.downloader import DEFAULT_WORKERS, MAX_WORKERS
 from ytgrab.environment import detect_environment
 from ytgrab.errors import EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE, UsageError, YtGrabError
 from ytgrab.formats import AUDIO_CODECS, parse_quality
-from ytgrab.gateway import YtDlpClient, load_auth_cookies
+from ytgrab.gateway import LoadedCookies, YtDlpClient, load_auth_cookies
 from ytgrab.i18n import LANGUAGES, resolve_language, set_language, system_language, t
 from ytgrab.models import Mode, SubtitleOptions
 from ytgrab.options import CONTAINERS, DEFAULT_CONTAINER, split_languages
@@ -108,6 +109,7 @@ def _add_common_options(parser: argparse.ArgumentParser, *, is_subcommand: bool)
         help=t("cli.help.cookies_from_browser"),
     )
     add(auth, "--cookies", metavar="FILE", help=t("cli.help.cookies"))
+    add(auth, "--paste-cookies", action="store_true", help=t("cli.help.paste_cookies"))
 
     run = parser.add_argument_group(t("cli.group.execution"))
     add(
@@ -163,6 +165,8 @@ def options_from_args(args: argparse.Namespace) -> RunOptions:
     languages = split_languages(args.subs or "")
     if (args.auto_subs or args.embed_subs) and not languages:
         raise UsageError(t("cli.subs_needed"))
+    if args.paste_cookies and (args.cookies or args.cookies_from_browser):
+        raise UsageError(t("cli.paste_combined"))
 
     return RunOptions(
         mode=Mode(args.mode) if args.mode else None,
@@ -199,6 +203,29 @@ def _choose_language(argv: Sequence[str] | None, settings_file: Path) -> None:
     )
 
 
+def cookie_loader(on_debug: Callable[[str], None]) -> CookieLoader:
+    """Load each sign-in's cookies once, so later runs don't hit the browser (and keychain) again.
+
+    Pasted cookies are the exception: they are meant for one run, so no copy is kept.
+    """
+    cached = functools.cache(functools.partial(load_auth_cookies, on_debug=on_debug))
+
+    def load(auth: AuthConfig) -> LoadedCookies:
+        return load_auth_cookies(auth, on_debug) if auth.pasted else cached(auth)
+
+    return load
+
+
+def _read_pasted_cookies(
+    prompter: TerminalPrompter | NonInteractivePrompter, console: Console
+) -> PastedCookies:
+    """``--paste-cookies``: ask in the terminal, or read cookies piped to stdin."""
+    if sys.stdin.isatty():
+        terminal = prompter if isinstance(prompter, TerminalPrompter) else TerminalPrompter(console)
+        return terminal.ask_pasted_cookies()
+    return parse_pasted_cookies(sys.stdin.read())
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point of the ``ytgrab`` command. Returns the process exit code."""
     settings_file = config_path()
@@ -217,8 +244,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         options = options_from_args(args)
         environment = detect_environment(expand_path(args.ffmpeg_location) if args.ffmpeg_location else None)
         prompter = TerminalPrompter(console) if interactive else NonInteractivePrompter()
-        # Cached per sign-in, so later runs of a session don't hit the browser (and keychain) again.
-        cookie_loader = functools.cache(functools.partial(load_auth_cookies, on_debug=on_debug))
+        if args.paste_cookies:
+            options = replace(options, auth=AuthConfig(pasted=_read_pasted_cookies(prompter, console)))
+        load_cookies = cookie_loader(on_debug)
 
         def make_app(run_options: RunOptions, *, check_environment: bool = True) -> App:
             return App(
@@ -227,7 +255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 console=console,
                 environment=environment,
                 client_factory=lambda cookies: YtDlpClient(environment, cookies, on_debug),
-                cookie_loader=cookie_loader,
+                cookie_loader=load_cookies,
                 interactive=interactive,
                 check_environment=check_environment,
             )

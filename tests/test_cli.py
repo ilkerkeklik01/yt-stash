@@ -1,9 +1,11 @@
+import io
 from pathlib import Path
 
 import pytest
 
 from ytgrab import __version__
-from ytgrab.cli import build_parser, main, options_from_args
+from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
+from ytgrab.cli import build_parser, cookie_loader, main, options_from_args
 from ytgrab.errors import AuthConfigError, UsageError
 from ytgrab.models import Mode
 from ytgrab.prompts import GoBack
@@ -191,3 +193,29 @@ def test_invalid_language_is_a_usage_error(argv, capsys):
         main(argv)
     assert excinfo.value.code == 2
     assert "usage: ytgrab [-h]" in capsys.readouterr().err  # reported by the real parser
+
+
+def test_pasted_cookies_are_never_cached(monkeypatch):
+    loads = []
+    monkeypatch.setattr("ytgrab.cli.load_auth_cookies", lambda auth, on_debug=None: loads.append(auth))
+    load = cookie_loader(lambda message: None)
+    firefox = AuthConfig(browser=BrowserSpec("firefox"))
+    pasted = AuthConfig(pasted=parse_pasted_cookies("SID=secret"))
+    for auth in (firefox, firefox, pasted, pasted):
+        load(auth)
+    assert loads == [firefox, pasted, pasted]
+
+
+def test_paste_cookies_reads_piped_stdin(capsys, monkeypatch):
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    assert main(["video", "dQw4w9WgXcQ", "--paste-cookies", "--yes"]) == 2
+    assert "Nothing was pasted." in capsys.readouterr().out
+    monkeypatch.setattr("sys.stdin", io.StringIO("SID=secret\n"))
+    assert main(["video", "not-a-url", "--paste-cookies", "--yes"]) == 2  # cookies accepted; the URL is not
+    output = capsys.readouterr().out
+    assert "Not a valid YouTube video URL" in output and "secret" not in output
+
+
+def test_paste_cookies_stands_alone():
+    with pytest.raises(UsageError, match="--paste-cookies"):
+        parse("video", "u", "--paste-cookies", "--cookies-from-browser", "firefox")

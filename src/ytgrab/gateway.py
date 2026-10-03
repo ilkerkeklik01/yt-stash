@@ -94,7 +94,9 @@ def load_auth_cookies(auth: AuthConfig, on_debug: LogCallback | None = None) -> 
     rewrites the user's own cookies.txt file.
     """
     browser = auth.browser.as_ytdlp_tuple() if auth.browser else None
-    cookie_file = str(auth.cookies_file) if auth.cookies_file else None
+    cookie_file: str | io.StringIO | None = str(auth.cookies_file) if auth.cookies_file else None
+    if auth.pasted:
+        cookie_file = io.StringIO(auth.pasted.netscape)  # pasted cookies never touch the disk
     with yt_dlp.YoutubeDL({"quiet": True, "logger": _YtDlpLogger(on_debug)}) as ydl:
         try:
             jar = load_cookies(cookie_file, browser, ydl)

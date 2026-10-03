@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from rich.console import Console
 
 from ytgrab.app import App, RunOptions
-from ytgrab.auth import AuthConfig, BrowserSpec
+from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
 from ytgrab.environment import Environment
 from ytgrab.errors import EXIT_INTERRUPTED, UsageError
 from ytgrab.i18n import get_language
@@ -276,3 +276,39 @@ def test_language_still_switches_when_it_cannot_be_saved(tmp_path):
     harness.session.run()
     assert get_language() == "tr"
     assert "kaydedilemedi" in harness.text
+
+
+@dataclass
+class ForgettingApp(FakeApp):
+    """Like App, forgets pasted cookies when its run ends."""
+
+    def run(self) -> int:
+        if self.options.auth.pasted:
+            self.options.auth.pasted.discard()
+            self.auth_after = AuthConfig()
+        return super().run()
+
+
+def test_pasted_sign_in_is_used_for_one_download_only():
+    pasted = parse_pasted_cookies("SID=secret")
+    prompter = MenuPrompter(
+        menu=[MenuAction.SIGN_IN, MenuAction.VIDEOS, MenuAction.VIDEOS, MenuAction.QUIT],
+        urls=["u"],
+        auth_answers=[AuthConfig(pasted=pasted)],
+        next_answers=[True, True],
+    )
+    harness = Harness(prompter)
+    harness.session._app_factory = lambda options: harness.runs.append(options) or ForgettingApp(options)
+    harness.session.run()
+    assert harness.runs[0].auth.pasted is pasted
+    assert harness.runs[1].auth == AuthConfig()  # asked again for the next download
+
+
+def test_replacing_a_pasted_sign_in_discards_it():
+    pasted = parse_pasted_cookies("SID=secret")
+    prompter = MenuPrompter(
+        menu=[MenuAction.SIGN_IN, MenuAction.SIGN_IN, MenuAction.QUIT],
+        auth_answers=[AuthConfig(pasted=pasted), FIREFOX],
+    )
+    Harness(prompter).session.run()
+    assert pasted.discarded
