@@ -27,6 +27,10 @@ CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Wi
 
 The version lives in `src/ytgrab/__init__.py` (read by hatchling).
 
+## Git workflow
+
+`main` is protected on GitHub (pull request and all CI checks required, no force-push, applies to admins). Never commit or push to `main`: branch first (`feature/…`, `fix/…`, `docs/…`, `chore/…`, kebab-case), push the branch, and open a PR against `main` with `gh pr create`. If the branch is behind `main`, merge `origin/main` into it rather than force-pushing over `main`. Details in `CONTRIBUTING.md`. If you change job names or the OS/Python matrix in `ci.yml`, the required checks in the branch protection must be updated too.
+
 ## Architecture
 
 `docs/ARCHITECTURE.md` is the authoritative design doc (module table and key decisions) — read it before non-trivial changes and keep it updated when behavior or module responsibilities change. The README documents user-facing behavior, options and exit codes; keep it in sync too.
