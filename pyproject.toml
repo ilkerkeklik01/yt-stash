@@ -1,20 +1,33 @@
 [build-system]
-requires = ["hatchling>=1.21"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "yt-stash"
 dynamic = ["version"]
-description = "Cross-platform YouTube video & playlist downloader CLI with quality selection, parallel downloads and members-only support."
+description = "Download YouTube videos and playlists from the terminal: pick any quality, run downloads in parallel, and save members-only videos."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Ilker Keklik", email = "ilkerkeklik50@gmail.com" }]
-keywords = ["youtube", "downloader", "cli", "yt-dlp", "playlist"]
+keywords = ["youtube", "downloader", "cli", "yt-dlp", "playlist", "video", "audio", "subtitles"]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
-    "Operating System :: OS Independent",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Multimedia :: Video",
+    "Topic :: Utilities",
 ]
 dependencies = [
     "yt-dlp[default]>=2025.11.12",
@@ -23,7 +36,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "build>=1.2", "twine>=5"]
+
+[project.urls]
+Homepage = "https://github.com/ilkerkeklik01/yt-stash"
+Documentation = "https://github.com/ilkerkeklik01/yt-stash/tree/main/docs"
+Changelog = "https://github.com/ilkerkeklik01/yt-stash/blob/main/CHANGELOG.md"
+Issues = "https://github.com/ilkerkeklik01/yt-stash/issues"
+Source = "https://github.com/ilkerkeklik01/yt-stash"
 
 [project.scripts]
 yt-stash = "yt_stash.cli:main"
@@ -33,6 +53,9 @@ path = "src/yt_stash/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/yt_stash"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/docs", "/README.md", "/LICENSE", "/CHANGELOG.md", "/CONTRIBUTING.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
