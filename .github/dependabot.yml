@@ -4,7 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    versioning-strategy: increase
+    # Only touch a lower bound when the newest release no longer satisfies it. Raising every floor
+    # on each release would make users and contributors upgrade for no reason. The yt-dlp floor is
+    # raised by hand when YouTube changes make older versions unusable.
+    versioning-strategy: increase-if-necessary
     groups:
       dev-tools:
         dependency-type: development

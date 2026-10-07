@@ -30,7 +30,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "yt-dlp[default]>=2025.11.12",
+    "yt-dlp[default]>=2026.8.19",
     "rich>=15.0.0",
     "questionary>=2.1",
 ]
