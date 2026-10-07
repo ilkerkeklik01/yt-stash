@@ -1,0 +1,4 @@
+# Keep line endings stable across operating systems (CI runs on Windows too).
+* text=auto eol=lf
+*.png binary
+*.gif binary

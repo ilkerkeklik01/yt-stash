@@ -25,7 +25,7 @@ Without an activated venv, call `.venv/bin/python`, `.venv/bin/pytest`, `.venv/b
 
 CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13, plus a smoke test `yt-stash --version && yt-stash video --help`. Code must stay compatible with Python 3.10 and Windows. Python 3.10 has no PEP 701: inside an f-string, use the other quote style (`f"{t('key')}"`).
 
-The version lives in `src/yt_stash/__init__.py` (read by hatchling).
+The version lives in `src/yt_stash/__init__.py` (read by hatchling). The project follows SemVer and Keep a Changelog: add a line under `## [Unreleased]` in `CHANGELOG.md` for every user-visible change; releases are cut as described in `docs/RELEASING.md` (tag `vX.Y.Z`, the release workflow publishes to PyPI).
 
 ## Git workflow
 
@@ -33,7 +33,7 @@ The version lives in `src/yt_stash/__init__.py` (read by hatchling).
 
 ## Architecture
 
-`docs/ARCHITECTURE.md` is the authoritative design doc (module table and key decisions) — read it before non-trivial changes and keep it updated when behavior or module responsibilities change. The README documents user-facing behavior, options and exit codes; keep it in sync too.
+`docs/ARCHITECTURE.md` is the authoritative design doc (module table and key decisions) — read it before non-trivial changes and keep it updated when behavior or module responsibilities change. User-facing documentation lives in `README.md` (overview, quickstart, install summary) and `docs/` (`installation.md`, `usage.md`, `authentication.md`, `troubleshooting.md`, `translating.md`); keep them in sync with behavior, options and exit codes. README links must be absolute URLs because PyPI renders it as the project description.
 
 Flow: `cli.py` (argparse + dependency wiring) → `session.py` (main menu for bare `yt-stash`, one `App` per choice, keeps sign-in between runs) → `app.py` (one run: probe → choose quality/folder → review screen → download → "sign in and retry" recovery).
 

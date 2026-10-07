@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help using yt-stash
+    url: https://github.com/ilkerkeklik01/yt-stash/discussions
+    about: Ask in Discussions. Issues are for bugs and concrete feature requests.
+  - name: Security vulnerability
+    url: https://github.com/ilkerkeklik01/yt-stash/security/advisories/new
+    about: Report it privately. Please do not open a public issue.
+  - name: Problem in yt-dlp itself
+    url: https://github.com/yt-dlp/yt-dlp/issues
+    about: If plain `yt-dlp URL` fails the same way, report it to yt-dlp.
