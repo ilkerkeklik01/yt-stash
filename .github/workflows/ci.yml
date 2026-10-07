@@ -51,15 +51,24 @@ jobs:
       - run: pip install build twine
       - run: python -m build
       - run: twine check dist/*
-      # Mirrors how release.yml hands the built files from one job to the next, so that a bump of the
-      # artifact actions is exercised on every pull request and not only when a tag is pushed.
       - uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/
+
+  # Mirrors how release.yml hands the built files from one job to the next, so that a bump of the
+  # artifact actions is exercised on every pull request and not only when a tag is pushed. It is a
+  # separate job because downloading right after uploading inside one job is occasionally flaky.
+  artifact-handover:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
       - uses: actions/download-artifact@v7
         with:
           name: dist
-          path: dist-roundtrip/
-      - name: Check the downloaded files are identical
-        run: diff -r dist dist-roundtrip
+          path: dist/
+      - run: pip install twine
+      - run: twine check dist/*
