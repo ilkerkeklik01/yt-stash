@@ -120,7 +120,23 @@ def _netscape_line(line: str) -> str | None:
     if len(fields) != 7 or not fields[0] or not _COOKIE_NAME.fullmatch(fields[5]):
         return None
     expires = fields[4]
-    return line if not expires or re.fullmatch(r"[0-9]+(\.[0-9]+)?", expires) else None
+    # Bounded: an absurd expiry makes http.cookiejar fail with the whole line (value included).
+    return line if not expires or re.fullmatch(r"[0-9]{1,15}(\.[0-9]{1,9})?", expires) else None
+
+
+def filter_cookie_file_text(text: str) -> str:
+    """Keep only comments, blank lines and valid entries of a ``cookies.txt`` file.
+
+    yt-dlp prints every line it cannot parse, with its cookie value, straight to stderr
+    (ignoring ``quiet``), so malformed lines are dropped before it ever sees them.
+    """
+    kept = []
+    for raw in text.splitlines():
+        line = raw.rstrip("\r")
+        is_comment = line.startswith("#") and not line.startswith(_HTTPONLY_PREFIX)
+        if not line.strip() or is_comment or _netscape_line(line):
+            kept.append(line)
+    return "\n".join(kept) + "\n"
 
 
 def parse_pasted_cookies(text: str) -> PastedCookies:

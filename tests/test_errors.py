@@ -67,3 +67,8 @@ def test_video_error_classifies_and_cleans():
     assert error.kind is ErrorKind.AUTH_REQUIRED
     assert str(error).startswith("Private video")
     assert VideoError("x", ErrorKind.DISK).kind is ErrorKind.DISK
+
+
+def test_control_characters_are_removed_from_remote_messages():
+    message = VideoError("ERROR: [youtube] abcdefghijk: bad\x1b]52;c;ZXZpbA==\x1b\\ \x9b2J title\x07").args[0]
+    assert "\x1b" not in message and "\x9b" not in message and "\x07" not in message

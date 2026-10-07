@@ -9,7 +9,8 @@ from __future__ import annotations
 import io
 import threading
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from http.cookiejar import LoadError
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -17,7 +18,7 @@ import yt_dlp
 from yt_dlp.cookies import CookieLoadError, load_cookies
 from yt_dlp.utils import DownloadCancelled, YoutubeDLError
 
-from ytgrab.auth import AuthConfig
+from ytgrab.auth import AuthConfig, filter_cookie_file_text
 from ytgrab.environment import Environment
 from ytgrab.errors import AuthConfigError, DownloadCancelledError, VideoError
 from ytgrab.i18n import t
@@ -82,7 +83,7 @@ class _YtDlpLogger:
 class LoadedCookies:
     """Cookies serialised in Netscape format, plus how many belong to YouTube."""
 
-    text: str
+    text: str = field(repr=False)  # cookie values: must never show up in repr/logs
     youtube_cookie_count: int
 
 
@@ -94,7 +95,14 @@ def load_auth_cookies(auth: AuthConfig, on_debug: LogCallback | None = None) -> 
     rewrites the user's own cookies.txt file.
     """
     browser = auth.browser.as_ytdlp_tuple() if auth.browser else None
-    cookie_file: str | io.StringIO | None = str(auth.cookies_file) if auth.cookies_file else None
+    cookie_file: io.StringIO | None = None
+    if auth.cookies_file:
+        try:  # filtered in memory: see filter_cookie_file_text
+            text = auth.cookies_file.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            path, reason = auth.cookies_file, exc.strerror or exc
+            raise AuthConfigError(t("auth.cookies_unreadable", path=path, reason=reason)) from exc
+        cookie_file = io.StringIO(filter_cookie_file_text(text))
     if auth.pasted:
         cookie_file = io.StringIO(auth.pasted.netscape)  # pasted cookies never touch the disk
     with yt_dlp.YoutubeDL({"quiet": True, "logger": _YtDlpLogger(on_debug)}) as ydl:
@@ -102,6 +110,8 @@ def load_auth_cookies(auth: AuthConfig, on_debug: LogCallback | None = None) -> 
             jar = load_cookies(cookie_file, browser, ydl)
         except CookieLoadError as exc:
             cause = exc.__context__ or exc
+            if isinstance(cause, LoadError):  # its message quotes the offending line, value included
+                cause = "invalid cookies file format"
             raise AuthConfigError(t("error.cookies_load", auth=auth.describe(), cause=cause)) from exc
 
     buffer = io.StringIO()
