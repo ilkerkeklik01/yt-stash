@@ -311,5 +311,8 @@ ruff check . && ruff format --check .
 
 The architecture is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+`main` is protected: work happens on a feature branch and is merged through a pull request once
+CI passes. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.
+
 Please only download content you have the right to download and respect YouTube's Terms
 of Service and the creators' rights.
