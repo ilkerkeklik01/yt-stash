@@ -10,11 +10,11 @@ from typing import Any
 
 import pytest
 
-from ytgrab import i18n
-from ytgrab.auth import AuthConfig
-from ytgrab.errors import VideoError
-from ytgrab.gateway import DownloadOutcome
-from ytgrab.models import (
+from yt_stash import i18n
+from yt_stash.auth import AuthConfig
+from yt_stash.errors import VideoError
+from yt_stash.gateway import DownloadOutcome
+from yt_stash.models import (
     DownloadPlan,
     Mode,
     ProgressEvent,
@@ -24,16 +24,16 @@ from ytgrab.models import (
     SubtitleOptions,
     VideoQuality,
 )
-from ytgrab.prompts import GoBack, ReviewAction
+from yt_stash.prompts import GoBack, ReviewAction
 
 
 @pytest.fixture(autouse=True)
 def english(tmp_path, monkeypatch):
     """Every test starts in English, whatever the machine's language or saved settings."""
-    for name in ("YTGRAB_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+    for name in ("YT_STASH_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr("ytgrab.cli.system_language", lambda: None)
-    monkeypatch.setattr("ytgrab.cli.config_path", lambda: tmp_path / "ytgrab-config.json")
+    monkeypatch.setattr("yt_stash.cli.system_language", lambda: None)
+    monkeypatch.setattr("yt_stash.cli.config_path", lambda: tmp_path / "yt-stash-config.json")
     i18n.set_language("en")
     yield
     i18n.set_language("en")

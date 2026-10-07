@@ -7,8 +7,8 @@ import re
 import tempfile
 from pathlib import Path
 
-from ytgrab.errors import OutputDirectoryError
-from ytgrab.i18n import t
+from yt_stash.errors import OutputDirectoryError
+from yt_stash.i18n import t
 
 # "$" and "%" are dropped too: yt-dlp expands environment variables in the output folder.
 _ILLEGAL_CHARS = re.compile(r'[<>:"/\\|?*$%\x00-\x1f\x7f-\x9f]')

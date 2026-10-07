@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ytgrab.i18n import t
+from yt_stash.i18n import t
 
 
 @dataclass(frozen=True)

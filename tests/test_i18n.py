@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab import i18n
-from ytgrab.auth import AuthConfig, BrowserSpec
-from ytgrab.errors import ErrorKind, UsageError, VideoError
-from ytgrab.i18n import (
+from yt_stash import i18n
+from yt_stash.auth import AuthConfig, BrowserSpec
+from yt_stash.errors import ErrorKind, UsageError, VideoError
+from yt_stash.i18n import (
     CATALOGS,
     en,
     normalize_language,
@@ -21,9 +21,9 @@ from ytgrab.i18n import (
     t,
     tn,
 )
-from ytgrab.models import AudioOnly, Stage, SubtitleOptions, VideoQuality
-from ytgrab.prompts import describe_selection, describe_subtitles
-from ytgrab.urls import normalize_video_urls
+from yt_stash.models import AudioOnly, Stage, SubtitleOptions, VideoQuality
+from yt_stash.prompts import describe_selection, describe_subtitles
+from yt_stash.urls import normalize_video_urls
 
 SOURCE = Path(i18n.__file__).parent.parent
 MARKUP = re.compile(r"\[/?[a-z]*\]")

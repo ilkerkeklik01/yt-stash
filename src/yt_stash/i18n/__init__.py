@@ -1,6 +1,6 @@
 """User-visible text in English and Turkish.
 
-Every message lives in a catalog (:mod:`ytgrab.i18n.en`, :mod:`ytgrab.i18n.tr`) under a
+Every message lives in a catalog (:mod:`yt_stash.i18n.en`, :mod:`yt_stash.i18n.tr`) under a
 dotted key and is looked up with :func:`t` when it is shown, so a language change from the
 main menu applies at once. Templates are whole sentences with ``str.format`` placeholders:
 Turkish attaches suffixes and orders words differently, so text is never glued together
@@ -18,7 +18,7 @@ import re
 import sys
 from collections.abc import Callable, Mapping
 
-from ytgrab.i18n import en, tr
+from yt_stash.i18n import en, tr
 
 LANGUAGES = {"en": "English", "tr": "Türkçe"}  # names in their own language, never translated
 DEFAULT_LANGUAGE = "en"

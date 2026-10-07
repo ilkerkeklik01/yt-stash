@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 
 from rich.console import Console
 
-from ytgrab.app import App, RunOptions
-from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
-from ytgrab.environment import Environment
-from ytgrab.errors import EXIT_INTERRUPTED, UsageError
-from ytgrab.i18n import get_language
-from ytgrab.models import Mode
-from ytgrab.prompts import GoBack, MenuAction
-from ytgrab.session import Session, setup_table
+from yt_stash.app import App, RunOptions
+from yt_stash.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
+from yt_stash.environment import Environment
+from yt_stash.errors import EXIT_INTERRUPTED, UsageError
+from yt_stash.i18n import get_language
+from yt_stash.models import Mode
+from yt_stash.prompts import GoBack, MenuAction
+from yt_stash.session import Session, setup_table
 
 from conftest import ScriptedPrompter
 
@@ -81,7 +81,7 @@ class Harness:
             environment=env,
             app_factory=self.make_app,
             help_text=lambda: (
-                "\x1b[1;34musage:\x1b[0m ytgrab [--flags]"
+                "\x1b[1;34musage:\x1b[0m yt-stash [--flags]"
             ),  # coloured like Python 3.14's argparse
         )
 
@@ -175,7 +175,7 @@ def test_information_entries_and_ctrl_c_in_menu():
     assert "ffmpeg was not found" in harness.text  # header warning
     assert prompter.asked == ["menu", "page", "menu", "page"]
     assert "missing" in prompter.pages["Setup"] and "yt-dlp" in prompter.pages["Setup"]
-    assert "usage: ytgrab [--flags]" in prompter.pages["Command-line options"]  # escape codes parsed
+    assert "usage: yt-stash [--flags]" in prompter.pages["Command-line options"]  # escape codes parsed
     assert harness.runs == []
 
 

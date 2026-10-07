@@ -1,7 +1,7 @@
 import pytest
 
-from ytgrab.errors import UsageError
-from ytgrab.formats import (
+from yt_stash.errors import UsageError
+from yt_stash.formats import (
     collect_quality_options,
     default_height,
     parse_quality,
@@ -9,7 +9,7 @@ from ytgrab.formats import (
     resolve_quality,
     short_side,
 )
-from ytgrab.models import QualityOption, Resolution, VideoInfo, VideoQuality
+from yt_stash.models import QualityOption, Resolution, VideoInfo, VideoQuality
 
 from conftest import AUDIO_FORMAT, fmt
 

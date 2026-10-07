@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
-from ytgrab.commandline import equivalent_command
-from ytgrab.models import AudioOnly, DownloadPlan, Mode, SubtitleOptions, VideoQuality
+from yt_stash.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
+from yt_stash.commandline import equivalent_command
+from yt_stash.models import AudioOnly, DownloadPlan, Mode, SubtitleOptions, VideoQuality
 
 URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 posix_paths = pytest.mark.skipif(os.name == "nt", reason="expects POSIX path separators")
@@ -34,7 +34,7 @@ def posix(monkeypatch):
 @posix_paths
 def test_defaults_are_omitted_and_values_quoted():
     command = equivalent_command(Mode.VIDEO, [URL], plan(), AuthConfig())
-    assert command == f"ytgrab video '{URL}' -q 1080 -o '/data/My Videos' --yes"
+    assert command == f"yt-stash video '{URL}' -q 1080 -o '/data/My Videos' --yes"
 
 
 @posix_paths
@@ -77,13 +77,13 @@ def test_home_paths_keep_tilde_unquoted():
 
 def test_many_urls_become_a_placeholder():
     command = equivalent_command(Mode.VIDEO, [URL] * 4, plan(), AuthConfig())
-    assert command.startswith("ytgrab video URL... -q")
+    assert command.startswith("yt-stash video URL... -q")
 
 
 def test_windows_quoting(monkeypatch):
     monkeypatch.setattr("sys.platform", "win32")
     command = equivalent_command(Mode.VIDEO, [URL], plan(), AuthConfig())
-    assert f"ytgrab video {URL} -q 1080" in command and '"' in command
+    assert f"yt-stash video {URL} -q 1080" in command and '"' in command
 
 
 def test_pasted_cookies_are_asked_again_not_shown():

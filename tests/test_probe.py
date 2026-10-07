@@ -1,9 +1,9 @@
 import pytest
 
-from ytgrab.errors import ErrorKind, VideoError
-from ytgrab.models import ProbeTarget
-from ytgrab.probe import Prober, ProbeResult, playlist_from_info, video_from_info
-from ytgrab.retry import RetryPolicy
+from yt_stash.errors import ErrorKind, VideoError
+from yt_stash.models import ProbeTarget
+from yt_stash.probe import Prober, ProbeResult, playlist_from_info, video_from_info
+from yt_stash.retry import RetryPolicy
 
 from conftest import FakeClient, url_of, vid, video_info
 

@@ -9,12 +9,12 @@ from pathlib import Path
 import pytest
 from yt_dlp.utils import DownloadCancelled, DownloadError
 
-from ytgrab import gateway
-from ytgrab.auth import AuthConfig, parse_pasted_cookies
-from ytgrab.environment import Environment
-from ytgrab.errors import AuthConfigError, DownloadCancelledError, ErrorKind, VideoError
-from ytgrab.gateway import YtDlpClient, load_auth_cookies
-from ytgrab.models import Stage
+from yt_stash import gateway
+from yt_stash.auth import AuthConfig, parse_pasted_cookies
+from yt_stash.environment import Environment
+from yt_stash.errors import AuthConfigError, DownloadCancelledError, ErrorKind, VideoError
+from yt_stash.gateway import YtDlpClient, load_auth_cookies
+from yt_stash.models import Stage
 
 ENV = Environment(
     ffmpeg_available=True,

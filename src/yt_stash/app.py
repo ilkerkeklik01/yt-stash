@@ -12,11 +12,11 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from ytgrab.auth import AuthConfig
-from ytgrab.commandline import MAX_LISTED_URLS, equivalent_command
-from ytgrab.downloader import DEFAULT_WORKERS, DownloadJob, DownloadManager, DownloadReport, JobStatus
-from ytgrab.environment import Environment
-from ytgrab.errors import (
+from yt_stash.auth import AuthConfig
+from yt_stash.commandline import MAX_LISTED_URLS, equivalent_command
+from yt_stash.downloader import DEFAULT_WORKERS, DownloadJob, DownloadManager, DownloadReport, JobStatus
+from yt_stash.environment import Environment
+from yt_stash.errors import (
     EXIT_FAILURES,
     EXIT_INTERRUPTED,
     EXIT_OK,
@@ -26,10 +26,10 @@ from ytgrab.errors import (
     UsageError,
     VideoError,
 )
-from ytgrab.formats import QualitySpec, collect_quality_options, default_height, resolve_quality
-from ytgrab.gateway import LoadedCookies, MediaClient
-from ytgrab.i18n import t, tn
-from ytgrab.models import (
+from yt_stash.formats import QualitySpec, collect_quality_options, default_height, resolve_quality
+from yt_stash.gateway import LoadedCookies, MediaClient
+from yt_stash.i18n import t, tn
+from yt_stash.models import (
     AudioOnly,
     DownloadPlan,
     Mode,
@@ -39,13 +39,13 @@ from ytgrab.models import (
     SubtitleOptions,
     VideoInfo,
 )
-from ytgrab.options import DEFAULT_CONTAINER, DownloadSettings, build_download_params
-from ytgrab.paths import default_download_dir, display_path, ensure_writable_directory, sanitize_component
-from ytgrab.probe import ProbeFailure, Prober, ProbeResult, playlist_from_info
-from ytgrab.progress import ProbeProgress, RichProgressReporter
-from ytgrab.prompts import GoBack, Prompter, ReviewAction, describe_selection, render_quality_table
-from ytgrab.retry import RetryPolicy
-from ytgrab.urls import normalize_playlist_url, normalize_video_urls
+from yt_stash.options import DEFAULT_CONTAINER, DownloadSettings, build_download_params
+from yt_stash.paths import default_download_dir, display_path, ensure_writable_directory, sanitize_component
+from yt_stash.probe import ProbeFailure, Prober, ProbeResult, playlist_from_info
+from yt_stash.progress import ProbeProgress, RichProgressReporter
+from yt_stash.prompts import GoBack, Prompter, ReviewAction, describe_selection, render_quality_table
+from yt_stash.retry import RetryPolicy
+from yt_stash.urls import normalize_playlist_url, normalize_video_urls
 
 ClientFactory = Callable[[LoadedCookies | None], MediaClient]
 CookieLoader = Callable[[AuthConfig], LoadedCookies]
@@ -79,9 +79,9 @@ class RunOptions:
 
 
 class App:
-    """Runs one ytgrab session. All I/O dependencies are injected for testability.
+    """Runs one yt-stash session. All I/O dependencies are injected for testability.
 
-    :class:`~ytgrab.prompts.GoBack` raised by a question that has no previous step here
+    :class:`~yt_stash.prompts.GoBack` raised by a question that has no previous step here
     (link, quality, the review screen itself) leaves :meth:`run`: the caller goes back.
     """
 

@@ -13,9 +13,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Literal
 
-from ytgrab.errors import UsageError
-from ytgrab.i18n import t
-from ytgrab.models import QualityOption, Resolution, VideoInfo, VideoQuality
+from yt_stash.errors import UsageError
+from yt_stash.i18n import t
+from yt_stash.models import QualityOption, Resolution, VideoInfo, VideoQuality
 
 DEFAULT_HEIGHT = 1080
 AUDIO_CODECS = ("m4a", "mp3", "opus")

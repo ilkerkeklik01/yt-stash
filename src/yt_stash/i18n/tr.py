@@ -1,4 +1,4 @@
-"""Turkish messages (Türkçe). Same keys, placeholders and markup as :mod:`ytgrab.i18n.en`.
+"""Turkish messages (Türkçe). Same keys, placeholders and markup as :mod:`yt_stash.i18n.en`.
 
 A placeholder never takes a suffix: Turkish suffixes follow vowel harmony and the word they
 attach to, which a template cannot know. Sentences put such values after a colon or before
@@ -74,10 +74,10 @@ MESSAGES: dict[str, str] = {
     "error.no_video_info": "Video bilgisi alınamadı: {url}",
     "error.cookies_load": "Çerezler yüklenemedi ({auth}): {cause}",
     "urls.invalid_video": "Geçerli bir YouTube video URL'si değil:\n{listing}",
-    "urls.hint_playlist": "İpucu: bir oynatma listesini indirmek için 'ytgrab playlist <url>' kullanın.",
+    "urls.hint_playlist": "İpucu: bir oynatma listesini indirmek için 'yt-stash playlist <url>' kullanın.",
     "urls.no_video": "Hiç video URL'si verilmedi.",
     "urls.invalid_playlist": "Geçerli bir YouTube oynatma listesi URL'si değil: {url}",
-    "urls.hint_video": "İpucu: bu bir video URL'si; bunun yerine 'ytgrab video <url>' kullanın.",
+    "urls.hint_video": "İpucu: bu bir video URL'si; bunun yerine 'yt-stash video <url>' kullanın.",
     "urls.cannot_read": "URL dosyası okunamıyor: '{path}': {reason}",
     "urls.not_utf8": "UTF-8 metin dosyası değil",
     "auth.invalid_spec": "Geçersiz tarayıcı tanımı: '{spec}'.",
@@ -138,7 +138,7 @@ MESSAGES: dict[str, str] = {
     "prompt.require_language": "En az bir dil kodu girin.",
     "prompt.bad_folder_name": "Eğik çizgi içermeyen bir klasör adı girin.",
     "prompt.no_links": "Dosyada hiç bağlantı yok.",
-    "prompt.no_mode": "Mod belirtilmedi. 'ytgrab video <url>...' ya da 'ytgrab playlist <url>' kullanın.",
+    "prompt.no_mode": "Mod belirtilmedi. 'yt-stash video <url>...' ya da 'yt-stash playlist <url>' kullanın.",
     "prompt.no_url": "URL verilmedi.",
     "browse.save_here": "Buraya kaydet",
     "browse.save_into": "Kaydedilecek yer: {path}",
@@ -293,7 +293,7 @@ MESSAGES: dict[str, str] = {
     # ------------------------------------------------------------------ main menu session
     "session.tagline": "YouTube videolarını ve oynatma listelerini indirin",
     "session.sign_in_reason": "Üyelere özel, gizli ve yaş kısıtlamalı videolar için YouTube hesabınızda "
-    "oturum açmış olmanız gerekir. ytgrab, tarayıcınızın ya da bir cookies.txt dosyasının oturum "
+    "oturum açmış olmanız gerekir. yt-stash, tarayıcınızın ya da bir cookies.txt dosyasının oturum "
     "çerezlerini okur ve yalnızca bellekte tutar; hiçbir şey kaydedilmez.",
     "session.sign_in_now": "Oturum açma: {auth}.",
     "session.language_now": "Dil: {name}.",

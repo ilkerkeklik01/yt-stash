@@ -2,14 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab.auth import (
+from yt_stash.auth import (
     AuthConfig,
     BrowserSpec,
     parse_browser_spec,
     parse_pasted_cookies,
     validate_cookies_file,
 )
-from ytgrab.errors import AuthConfigError
+from yt_stash.errors import AuthConfigError
 
 
 @pytest.mark.parametrize(

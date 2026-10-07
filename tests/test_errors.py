@@ -1,6 +1,6 @@
 import pytest
 
-from ytgrab.errors import ErrorKind, VideoError, classify_error, clean_message
+from yt_stash.errors import ErrorKind, VideoError, classify_error, clean_message
 
 
 @pytest.mark.parametrize(

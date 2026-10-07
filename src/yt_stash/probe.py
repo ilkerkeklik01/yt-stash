@@ -7,14 +7,14 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from ytgrab.concurrency import map_interruptible
-from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError, strip_control
-from ytgrab.formats import resolutions_from_formats
-from ytgrab.gateway import MediaClient
-from ytgrab.i18n import t
-from ytgrab.models import PlaylistInfo, ProbeTarget, VideoInfo
-from ytgrab.retry import RetryPolicy, call_with_retry
-from ytgrab.urls import canonical_video_url
+from yt_stash.concurrency import map_interruptible
+from yt_stash.errors import DownloadCancelledError, ErrorKind, VideoError, strip_control
+from yt_stash.formats import resolutions_from_formats
+from yt_stash.gateway import MediaClient
+from yt_stash.i18n import t
+from yt_stash.models import PlaylistInfo, ProbeTarget, VideoInfo
+from yt_stash.retry import RetryPolicy, call_with_retry
+from yt_stash.urls import canonical_video_url
 
 DEFAULT_PROBE_WORKERS = 8
 

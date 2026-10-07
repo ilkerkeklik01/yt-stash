@@ -27,7 +27,7 @@ from rich.console import Console, RenderableType
 from rich.markup import escape
 from rich.table import Table
 
-from ytgrab.auth import (
+from yt_stash.auth import (
     BROWSERS,
     AuthConfig,
     BrowserSpec,
@@ -35,12 +35,12 @@ from ytgrab.auth import (
     parse_pasted_cookies,
     validate_cookies_file,
 )
-from ytgrab.browse import list_directory, nearest_existing_dir, quick_places
-from ytgrab.downloader import MAX_WORKERS
-from ytgrab.errors import UsageError, YtGrabError
-from ytgrab.formats import AUDIO_CODECS
-from ytgrab.i18n import LANGUAGES, get_language, t, tn
-from ytgrab.models import (
+from yt_stash.browse import list_directory, nearest_existing_dir, quick_places
+from yt_stash.downloader import MAX_WORKERS
+from yt_stash.errors import UsageError, YtStashError
+from yt_stash.formats import AUDIO_CODECS
+from yt_stash.i18n import LANGUAGES, get_language, t, tn
+from yt_stash.models import (
     AudioOnly,
     DownloadPlan,
     Mode,
@@ -49,10 +49,10 @@ from ytgrab.models import (
     SubtitleOptions,
     VideoQuality,
 )
-from ytgrab.options import CONTAINERS, split_languages
-from ytgrab.paths import display_path, expand_path
-from ytgrab.urls import normalize_playlist_url, normalize_video_urls, read_url_file, split_urls
-from ytgrab.viewer import ESC_TIMEOUT, show_page
+from yt_stash.options import CONTAINERS, split_languages
+from yt_stash.paths import display_path, expand_path
+from yt_stash.urls import normalize_playlist_url, normalize_video_urls, read_url_file, split_urls
+from yt_stash.viewer import ESC_TIMEOUT, show_page
 
 T = TypeVar("T")
 
@@ -79,7 +79,7 @@ class ReviewAction(Enum):
 
 
 class MenuAction(Enum):
-    """Entries of the main menu shown when ytgrab starts without arguments."""
+    """Entries of the main menu shown when yt-stash starts without arguments."""
 
     VIDEOS = "videos"
     PLAYLIST = "playlist"
@@ -274,12 +274,12 @@ def _keep_pasted_lines(question: Question) -> Question:
 
 
 def _validator(check: Callable[[str], object]) -> Callable[[str], bool | str]:
-    """Adapt a function raising :class:`YtGrabError` to questionary's validate callback."""
+    """Adapt a function raising :class:`YtStashError` to questionary's validate callback."""
 
     def validate(text: str) -> bool | str:
         try:
             check(text)
-        except YtGrabError as error:
+        except YtStashError as error:
             return " ".join(line.strip() for line in str(error).splitlines())
         return True
 

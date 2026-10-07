@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from ytgrab.browse import list_directory, nearest_existing_dir, quick_places
-from ytgrab.viewer import Page, render_lines
+from yt_stash.browse import list_directory, nearest_existing_dir, quick_places
+from yt_stash.viewer import Page, render_lines
 
 
 def test_list_directory_sorts_and_hides_dot_entries(tmp_path):

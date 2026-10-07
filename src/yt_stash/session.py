@@ -14,15 +14,15 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
-from ytgrab import __version__
-from ytgrab.app import App, RunOptions, environment_warnings
-from ytgrab.auth import AuthConfig
-from ytgrab.environment import Environment
-from ytgrab.errors import EXIT_INTERRUPTED, EXIT_OK, YtGrabError
-from ytgrab.i18n import LANGUAGES, get_language, set_language, t
-from ytgrab.models import Mode
-from ytgrab.prompts import GoBack, MenuAction, SessionPrompter
-from ytgrab.settings import save_setting
+from yt_stash import __version__
+from yt_stash.app import App, RunOptions, environment_warnings
+from yt_stash.auth import AuthConfig
+from yt_stash.environment import Environment
+from yt_stash.errors import EXIT_INTERRUPTED, EXIT_OK, YtStashError
+from yt_stash.i18n import LANGUAGES, get_language, set_language, t
+from yt_stash.models import Mode
+from yt_stash.prompts import GoBack, MenuAction, SessionPrompter
+from yt_stash.settings import save_setting
 
 AppFactory = Callable[[RunOptions], App]
 
@@ -56,7 +56,7 @@ def setup_table(environment: Environment, platform: str = sys.platform) -> Table
     table.add_row(
         "yt-dlp",
         version("yt-dlp"),
-        t("setup.ytdlp_desc", pipx="pipx upgrade ytgrab", pip="pip install -U yt-dlp"),
+        t("setup.ytdlp_desc", pipx="pipx upgrade yt-stash", pip="pip install -U yt-dlp"),
     )
     return table
 
@@ -90,7 +90,7 @@ class Session:
 
     def run(self) -> int:
         """Loop until the user quits. Returns the exit code of the last download."""
-        self._console.print(f"[b]ytgrab[/] {__version__}  [dim]{t('session.tagline')}")
+        self._console.print(f"[b]yt-stash[/] {__version__}  [dim]{t('session.tagline')}")
         for warning in environment_warnings(self._env):
             self._console.print(warning)
 
@@ -111,7 +111,7 @@ class Session:
                 exit_code = self._download(action)
             except GoBack:
                 continue  # Esc before the download started: back to the main menu
-            except YtGrabError as error:
+            except YtStashError as error:
                 self._console.print(t("cli.error", message=escape(str(error))))
                 exit_code = error.exit_code
             if exit_code == EXIT_INTERRUPTED or not self._ask_next():
@@ -140,7 +140,7 @@ class Session:
                     previous.pasted.discard()  # replaced before it was used
             except GoBack:
                 pass  # keep the current sign-in
-            except YtGrabError as error:
+            except YtStashError as error:
                 self._console.print(f"[red]{escape(str(error))}")
             self._console.print(f"[dim]{t('session.sign_in_now', auth=escape(self._auth.describe()))}")
         elif action is MenuAction.LANGUAGE:

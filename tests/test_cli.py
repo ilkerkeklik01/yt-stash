@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab import __version__
-from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
-from ytgrab.cli import build_parser, cookie_loader, main, options_from_args
-from ytgrab.errors import AuthConfigError, UsageError
-from ytgrab.models import Mode
-from ytgrab.prompts import GoBack
-from ytgrab.settings import save_setting
+from yt_stash import __version__
+from yt_stash.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
+from yt_stash.cli import build_parser, cookie_loader, main, options_from_args
+from yt_stash.errors import AuthConfigError, UsageError
+from yt_stash.models import Mode
+from yt_stash.prompts import GoBack
+from yt_stash.settings import save_setting
 
 
 def parse(*argv: str):
@@ -144,7 +144,7 @@ def test_esc_with_nothing_to_go_back_to_cancels(capsys, monkeypatch):
     def leave(self):
         raise GoBack
 
-    monkeypatch.setattr("ytgrab.app.App.run", leave)
+    monkeypatch.setattr("yt_stash.app.App.run", leave)
     assert main(["video", "https://youtu.be/dQw4w9WgXcQ", "--yes"]) == 0
     assert "Cancelled" in capsys.readouterr().out
 
@@ -153,7 +153,7 @@ def test_help_in_the_chosen_language(capsys, monkeypatch, tmp_path):
     with pytest.raises(SystemExit):
         main(["--help", "--lang", "tr"])
     assert "örnekler:" in capsys.readouterr().out
-    monkeypatch.setenv("YTGRAB_LANG", "tr")
+    monkeypatch.setenv("YT_STASH_LANG", "tr")
     with pytest.raises(SystemExit):
         main(["video", "--help"])
     assert "bir veya daha fazla video indir" not in capsys.readouterr().out  # that is the parent's help
@@ -173,16 +173,16 @@ def test_language_priority(capsys, monkeypatch, tmp_path):
         assert main([*argv, "video", "not-a-url", "--yes"]) == 2
         return error_language(capsys)
 
-    save_setting(tmp_path / "ytgrab-config.json", "language", "tr")  # the file the english fixture uses
+    save_setting(tmp_path / "yt-stash-config.json", "language", "tr")  # the file the english fixture uses
     assert language() == "tr"  # saved choice
     assert language("--lang", "en") == "en"  # the flag beats it
-    monkeypatch.setenv("YTGRAB_LANG", "en")
+    monkeypatch.setenv("YT_STASH_LANG", "en")
     assert language() == "en"  # so does the environment variable
     assert language("--lang", "tr") == "tr"
 
 
 def test_system_language_is_the_fallback(capsys, monkeypatch):
-    monkeypatch.setattr("ytgrab.cli.system_language", lambda: "tr_TR.UTF-8")
+    monkeypatch.setattr("yt_stash.cli.system_language", lambda: "tr_TR.UTF-8")
     main(["video", "not-a-url", "--yes"])
     assert error_language(capsys) == "tr"
 
@@ -192,12 +192,12 @@ def test_invalid_language_is_a_usage_error(argv, capsys):
     with pytest.raises(SystemExit) as excinfo:
         main(argv)
     assert excinfo.value.code == 2
-    assert "usage: ytgrab [-h]" in capsys.readouterr().err  # reported by the real parser
+    assert "usage: yt-stash [-h]" in capsys.readouterr().err  # reported by the real parser
 
 
 def test_pasted_cookies_are_never_cached(monkeypatch):
     loads = []
-    monkeypatch.setattr("ytgrab.cli.load_auth_cookies", lambda auth, on_debug=None: loads.append(auth))
+    monkeypatch.setattr("yt_stash.cli.load_auth_cookies", lambda auth, on_debug=None: loads.append(auth))
     load = cookie_loader(lambda message: None)
     firefox = AuthConfig(browser=BrowserSpec("firefox"))
     pasted = AuthConfig(pasted=parse_pasted_cookies("SID=secret"))

@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from enum import Enum
 
-from ytgrab.i18n import t
+from yt_stash.i18n import t
 
 
 class ErrorKind(Enum):
@@ -113,31 +113,31 @@ def clean_message(message: str) -> str:
     return (lines[0].strip() if lines else "") or t("error.unknown")
 
 
-class YtGrabError(Exception):
+class YtStashError(Exception):
     """Base class for errors that end the program with a friendly message."""
 
     exit_code = EXIT_FAILURES
 
 
-class UsageError(YtGrabError):
+class UsageError(YtStashError):
     """The user supplied invalid input (bad URL, bad flag value, ...)."""
 
     exit_code = EXIT_USAGE
 
 
-class AuthConfigError(YtGrabError):
+class AuthConfigError(YtStashError):
     """Authentication settings are invalid or cookies could not be loaded."""
 
     exit_code = EXIT_USAGE
 
 
-class OutputDirectoryError(YtGrabError):
+class OutputDirectoryError(YtStashError):
     """The target directory cannot be created or written to."""
 
     exit_code = EXIT_USAGE
 
 
-class VideoError(YtGrabError):
+class VideoError(YtStashError):
     """A single video (or playlist) failed to be probed or downloaded."""
 
     def __init__(self, message: str, kind: ErrorKind | None = None) -> None:
