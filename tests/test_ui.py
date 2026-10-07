@@ -51,7 +51,7 @@ OPTIONS = [
     QualityOption(720, 30, False, 2),
 ]
 UP, DOWN, ENTER, CLEAR, ESC = "\x1b[A", "\x1b[B", "\r", "\x15", "\x1b"  # Ctrl+U clears the line
-VIDEO_URL = "https://youtu.be/dQw4w9WgXcQ"
+VIDEO_URL = "https://youtu.be/abcdefghijk"
 
 
 @contextmanager
@@ -124,8 +124,8 @@ def test_ask_mode():
 
 
 def test_ask_video_urls_rejects_invalid_input_until_fixed():
-    with keys("not-a-link", ENTER, CLEAR, f"{VIDEO_URL}, dQw4w9WgXcQ", ENTER) as prompter:
-        assert prompter.ask_urls(Mode.VIDEO) == [VIDEO_URL, "dQw4w9WgXcQ"]
+    with keys("not-a-link", ENTER, CLEAR, f"{VIDEO_URL}, abcdefghijk", ENTER) as prompter:
+        assert prompter.ask_urls(Mode.VIDEO) == [VIDEO_URL, "abcdefghijk"]
 
 
 def test_ask_playlist_url_rejects_video_links():

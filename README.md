@@ -42,7 +42,7 @@ pipx install yt-stash
 yt-stash
 
 # 3. Or download straight away
-yt-stash video https://youtu.be/dQw4w9WgXcQ                      # asks for quality and folder
+yt-stash video URL                    # asks for quality and folder
 yt-stash video URL -q 720 -o ~/Videos                            # no questions
 yt-stash video URL1 URL2 URL3 -j 3                               # three at once
 yt-stash playlist "https://www.youtube.com/playlist?list=PL..."  # a whole playlist
@@ -131,6 +131,11 @@ yt-stash is released under the [MIT License](https://github.com/ilkerkeklik01/yt
 It is an independent project, not affiliated with or endorsed by YouTube or Google. Only download
 content you have the right to download, and respect YouTube's Terms of Service and the creators'
 rights. You are responsible for how you use this tool.
+
+yt-stash does not remove DRM, bypass paywalls or circumvent access controls of its own; it drives yt-dlp, and
+sign-in works only through cookies you already have. It collects no data and has no telemetry: the only
+thing it stores is the language you choose, in a local settings file. Everything that goes over the network
+is done by yt-dlp, to YouTube and its video servers.
 
 yt-stash builds on [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), [rich](https://github.com/Textualize/rich)
 (MIT), [questionary](https://github.com/tmbo/questionary) (MIT) and

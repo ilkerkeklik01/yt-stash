@@ -8,7 +8,7 @@ from yt_stash.urls import (
     normalize_video_urls,
 )
 
-VIDEO_ID = "dQw4w9WgXcQ"
+VIDEO_ID = "ZZZZZZZZZZZ"
 CANONICAL = f"https://www.youtube.com/watch?v={VIDEO_ID}"
 
 
