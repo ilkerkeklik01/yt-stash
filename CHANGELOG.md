@@ -9,6 +9,10 @@ the environment variables and settings file described in the documentation.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-08
+
+First public release.
+
 ### Added
 
 - Interactive main menu (`yt-stash` without arguments) with arrow-key navigation, a description
@@ -32,4 +36,5 @@ the environment variables and settings file described in the documentation.
 - Packaging for PyPI, an MIT license, a code of conduct, a security policy, contribution guidelines,
   issue forms, and installation guides for macOS, Windows and Linux.
 
-[Unreleased]: https://github.com/ilkerkeklik01/yt-stash/commits/main
+[Unreleased]: https://github.com/ilkerkeklik01/yt-stash/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/ilkerkeklik01/yt-stash/releases/tag/v1.0.0
