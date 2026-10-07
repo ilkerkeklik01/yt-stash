@@ -129,8 +129,8 @@ def test_options_without_subcommand_for_wizard():
 
 def test_from_file_ignores_windows_byte_order_mark(tmp_path):
     url_file = tmp_path / "urls.txt"
-    url_file.write_bytes("\ufeff# saved by Notepad\r\nhttps://youtu.be/dQw4w9WgXcQ\r\n".encode())
-    assert parse("video", "--from-file", str(url_file)).urls == ("https://youtu.be/dQw4w9WgXcQ",)
+    url_file.write_bytes("\ufeff# saved by Notepad\r\nhttps://youtu.be/abcdefghijk\r\n".encode())
+    assert parse("video", "--from-file", str(url_file)).urls == ("https://youtu.be/abcdefghijk",)
 
 
 def test_from_file_rejects_binary(tmp_path):
@@ -145,7 +145,7 @@ def test_esc_with_nothing_to_go_back_to_cancels(capsys, monkeypatch):
         raise GoBack
 
     monkeypatch.setattr("yt_stash.app.App.run", leave)
-    assert main(["video", "https://youtu.be/dQw4w9WgXcQ", "--yes"]) == 0
+    assert main(["video", "https://youtu.be/abcdefghijk", "--yes"]) == 0
     assert "Cancelled" in capsys.readouterr().out
 
 
@@ -208,7 +208,7 @@ def test_pasted_cookies_are_never_cached(monkeypatch):
 
 def test_paste_cookies_reads_piped_stdin(capsys, monkeypatch):
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    assert main(["video", "dQw4w9WgXcQ", "--paste-cookies", "--yes"]) == 2
+    assert main(["video", "abcdefghijk", "--paste-cookies", "--yes"]) == 2
     assert "Nothing was pasted." in capsys.readouterr().out
     monkeypatch.setattr("sys.stdin", io.StringIO("SID=secret\n"))
     assert main(["video", "not-a-url", "--paste-cookies", "--yes"]) == 2  # cookies accepted; the URL is not

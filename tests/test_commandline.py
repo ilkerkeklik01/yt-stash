@@ -9,7 +9,7 @@ from yt_stash.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
 from yt_stash.commandline import equivalent_command
 from yt_stash.models import AudioOnly, DownloadPlan, Mode, SubtitleOptions, VideoQuality
 
-URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+URL = "https://www.youtube.com/watch?v=abcdefghijk"
 posix_paths = pytest.mark.skipif(os.name == "nt", reason="expects POSIX path separators")
 
 

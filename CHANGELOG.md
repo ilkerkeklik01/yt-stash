@@ -9,6 +9,10 @@ the environment variables and settings file described in the documentation.
 
 ## [Unreleased]
 
+### Changed
+
+- Examples in the documentation and help text use a `URL` placeholder instead of a real video.
+
 ## [1.0.0] - 2026-10-08
 
 First public release.

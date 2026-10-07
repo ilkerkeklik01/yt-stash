@@ -34,7 +34,7 @@ from yt_stash.urls import read_url_file
 # (command, catalog key of its explanation or None); commands are never translated.
 _EXAMPLES = (
     ("yt-stash", "cli.example.menu"),
-    ("yt-stash video https://youtu.be/dQw4w9WgXcQ", "cli.example.one_video"),
+    ("yt-stash video URL", "cli.example.one_video"),
     ("yt-stash video URL1 URL2 -q 720 -o ~/Videos", "cli.example.several"),
     ('yt-stash playlist "https://www.youtube.com/playlist?list=PL..." -j 4', None),
     ("yt-stash video URL --cookies-from-browser firefox", "cli.example.members"),

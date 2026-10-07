@@ -57,13 +57,13 @@ def test_transient_kinds():
 
 
 def test_clean_message_strips_prefix_and_colors():
-    raw = "\x1b[0;31mERROR:\x1b[0m [youtube] dQw4w9WgXcQ: Video unavailable\nmore details"
+    raw = "\x1b[0;31mERROR:\x1b[0m [youtube] abcdefghijk: Video unavailable\nmore details"
     assert clean_message(raw) == "Video unavailable"
     assert clean_message("") == "unknown error"
 
 
 def test_video_error_classifies_and_cleans():
-    error = VideoError("ERROR: [youtube] dQw4w9WgXcQ: Private video. Sign in if you've been granted access")
+    error = VideoError("ERROR: [youtube] abcdefghijk: Private video. Sign in if you've been granted access")
     assert error.kind is ErrorKind.AUTH_REQUIRED
     assert str(error).startswith("Private video")
     assert VideoError("x", ErrorKind.DISK).kind is ErrorKind.DISK
