@@ -9,9 +9,12 @@ the environment variables and settings file described in the documentation.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-08
+
 ### Changed
 
 - Examples in the documentation and help text use a `URL` placeholder instead of a real video.
+- The README's legal section states that yt-stash does not circumvent access controls of its own and collects no data.
 
 ## [1.0.0] - 2026-10-08
 
@@ -40,5 +43,6 @@ First public release.
 - Packaging for PyPI, an MIT license, a code of conduct, a security policy, contribution guidelines,
   issue forms, and installation guides for macOS, Windows and Linux.
 
-[Unreleased]: https://github.com/ilkerkeklik01/yt-stash/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ilkerkeklik01/yt-stash/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/ilkerkeklik01/yt-stash/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/ilkerkeklik01/yt-stash/releases/tag/v1.0.0
