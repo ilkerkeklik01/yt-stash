@@ -602,3 +602,24 @@ def test_other_sign_ins_are_kept(tmp_path):
     harness.run(mode=Mode.VIDEO, urls=(vid(1),), auth=FIREFOX)
     assert harness.app.auth == FIREFOX
     assert "discarded" not in harness.text
+
+
+def test_pasted_cookies_that_fail_to_load_are_discarded(tmp_path):
+    client = videos_client()
+    client.videos[url_of(vid(1))] = VideoError(MEMBERS_ONLY)
+    pasted = parse_pasted_cookies("SID=secret")
+    prompter = ScriptedPrompter(directory=tmp_path, auth_answers=[AuthConfig(pasted=pasted)])
+    harness = Harness(tmp_path, client, prompter, cookie_error=True)
+    harness.run(mode=Mode.VIDEO, urls=(vid(1),))
+    assert pasted.discarded
+
+
+def test_pasted_cookies_replaced_by_a_newer_sign_in_are_discarded(tmp_path):
+    client = videos_client()
+    client.videos[url_of(vid(1))] = VideoError(MEMBERS_ONLY)
+    first = parse_pasted_cookies("SID=first")
+    second = parse_pasted_cookies("SID=second")
+    prompter = ScriptedPrompter(directory=tmp_path, auth_answers=[AuthConfig(pasted=second)])
+    harness = Harness(tmp_path, client, prompter, authed_client=client)  # the sign-in does not help
+    harness.run(mode=Mode.VIDEO, urls=(vid(1),), auth=AuthConfig(pasted=first))
+    assert first.discarded and second.discarded

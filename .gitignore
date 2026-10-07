@@ -11,7 +11,8 @@ dist/
 htmlcov/
 .DS_Store
 # Never commit exported cookies
-cookies*.txt
+*cookies*.txt
+*cookies*.json
 *.cookies
 # Local Claude Code settings
 .claude/

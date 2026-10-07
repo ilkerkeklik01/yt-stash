@@ -14,8 +14,8 @@ from ytgrab.errors import UsageError
 from ytgrab.i18n import t
 from ytgrab.paths import expand_path
 
-_VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
-_PLAYLIST_ID = re.compile(r"^[A-Za-z0-9_-]{2,64}$")
+_VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+_PLAYLIST_ID = re.compile(r"[A-Za-z0-9_-]{2,64}")
 
 _YOUTUBE_HOSTS = frozenset(
     {
@@ -45,7 +45,7 @@ def _split(raw: str) -> tuple[str, str, dict[str, list[str]]]:
 def extract_video_id(raw: str) -> str | None:
     """Return the 11-character video id contained in ``raw``, or ``None``."""
     text = raw.strip()
-    if _VIDEO_ID.match(text):
+    if _VIDEO_ID.fullmatch(text):
         return text
 
     host, path, query = _split(text)
@@ -60,7 +60,7 @@ def extract_video_id(raw: str) -> str | None:
         elif len(segments) >= 2 and segments[0] in _PATH_PREFIXES:
             candidate = segments[1]
 
-    return candidate if candidate and _VIDEO_ID.match(candidate) else None
+    return candidate if candidate and _VIDEO_ID.fullmatch(candidate) else None
 
 
 def extract_playlist_id(raw: str) -> str | None:
@@ -69,7 +69,7 @@ def extract_playlist_id(raw: str) -> str | None:
     if host not in _YOUTUBE_HOSTS and host not in _SHORT_HOSTS:
         return None
     candidate = query.get("list", [None])[0]
-    return candidate if candidate and _PLAYLIST_ID.match(candidate) else None
+    return candidate if candidate and _PLAYLIST_ID.fullmatch(candidate) else None
 
 
 def canonical_video_url(video_id: str) -> str:

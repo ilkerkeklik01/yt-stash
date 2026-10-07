@@ -102,3 +102,14 @@ def test_prober_retries_transient_errors():
     result = Prober(Flaky(), retry=RetryPolicy(attempts=3, base_delay=0)).probe([ProbeTarget(url_of(vid(1)))])
     assert [v.id for v in result.videos] == [vid(1)]
     assert len(calls) == 2
+
+
+def test_titles_from_youtube_lose_terminal_control_characters():
+    info = {
+        "id": "PL1",
+        "title": "list\x1b[2J",
+        "entries": [{"id": "a" * 11, "title": "x\x1b]8;;evil\x1b\\y"}],
+    }
+    playlist = playlist_from_info(info, "url")
+    assert playlist.title == "list[2J"
+    assert "\x1b" not in (playlist.entries[0].title or "")

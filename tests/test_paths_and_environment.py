@@ -18,6 +18,8 @@ from ytgrab.paths import ensure_writable_directory, expand_path, sanitize_compon
         ("  lots   of\tspace  ", "lots of space"),
         ("CON", "_CON"),
         ("com1.txt", "_com1.txt"),
+        ("$HOME and %APPDATA%", "_HOME and _APPDATA_"),
+        ("a\x9bb\x7f", "a_b_"),
         ("", "untitled"),
         ("...", "untitled"),
         ("Türkçe 🎵 名前", "Türkçe 🎵 名前"),

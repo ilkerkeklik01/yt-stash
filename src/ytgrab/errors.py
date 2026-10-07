@@ -74,6 +74,8 @@ _PATTERNS: tuple[tuple[ErrorKind, re.Pattern[str]], ...] = tuple(
 )
 
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+# C0 (except tab and newline), DEL and C1: terminal escape sequences in remote text.
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 _ERROR_PREFIX = re.compile(r"^\s*(ERROR:\s*)?(\[[\w:]+\]\s*)?([\w-]{11}:\s*)?")
 
 EXIT_OK = 0
@@ -82,9 +84,14 @@ EXIT_USAGE = 2
 EXIT_INTERRUPTED = 130
 
 
+def strip_control(text: str) -> str:
+    """``text`` without control characters, so remote text cannot drive the user's terminal."""
+    return _CONTROL_CHARS.sub("", text)
+
+
 def _normalize(message: str) -> str:
-    """Remove ANSI colors and the ``ERROR: [youtube] <id>:`` prefix (keeps every line)."""
-    return _ERROR_PREFIX.sub("", _ANSI_ESCAPE.sub("", message).strip(), count=1)
+    """Remove control characters and the ``ERROR: [youtube] <id>:`` prefix (keeps every line)."""
+    return _ERROR_PREFIX.sub("", strip_control(_ANSI_ESCAPE.sub("", message)).strip(), count=1)
 
 
 def classify_error(message: str) -> ErrorKind:
