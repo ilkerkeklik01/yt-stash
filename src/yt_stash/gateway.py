@@ -1,4 +1,4 @@
-"""The single gateway between ytgrab and yt-dlp's extraction/download API.
+"""The single gateway between yt-stash and yt-dlp's extraction/download API.
 
 Everything else talks to the :class:`MediaClient` protocol, so it can be unit-tested
 with a fake client and never touches the network.
@@ -18,11 +18,11 @@ import yt_dlp
 from yt_dlp.cookies import CookieLoadError, load_cookies
 from yt_dlp.utils import DownloadCancelled, YoutubeDLError
 
-from ytgrab.auth import AuthConfig, filter_cookie_file_text
-from ytgrab.environment import Environment
-from ytgrab.errors import AuthConfigError, DownloadCancelledError, VideoError
-from ytgrab.i18n import t
-from ytgrab.models import ProgressEvent, Stage
+from yt_stash.auth import AuthConfig, filter_cookie_file_text
+from yt_stash.environment import Environment
+from yt_stash.errors import AuthConfigError, DownloadCancelledError, VideoError
+from yt_stash.i18n import t
+from yt_stash.models import ProgressEvent, Stage
 
 ProgressCallback = Callable[[ProgressEvent], None]
 LogCallback = Callable[[str], None]
@@ -60,7 +60,7 @@ class MediaClient(Protocol):
 
 
 class _YtDlpLogger:
-    """Routes yt-dlp output to ytgrab; errors are raised by yt-dlp and reported by us."""
+    """Routes yt-dlp output to yt-stash; errors are raised by yt-dlp and reported by us."""
 
     def __init__(self, on_debug: LogCallback | None = None) -> None:
         self._on_debug = on_debug

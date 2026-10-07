@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab.environment import detect_environment, detect_ffmpeg, detect_js_runtimes
-from ytgrab.errors import OutputDirectoryError
-from ytgrab.paths import ensure_writable_directory, expand_path, sanitize_component
+from yt_stash.environment import detect_environment, detect_ffmpeg, detect_js_runtimes
+from yt_stash.errors import OutputDirectoryError
+from yt_stash.paths import ensure_writable_directory, expand_path, sanitize_component
 
 
 @pytest.mark.parametrize(
@@ -34,8 +34,8 @@ def test_sanitize_component_limits_length():
 
 
 def test_expand_path(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("YTGRAB_TEST_DIR", str(tmp_path))
-    assert expand_path(f"'$YTGRAB_TEST_DIR{os.sep}sub'") == (tmp_path / "sub").resolve()
+    monkeypatch.setenv("YT_STASH_TEST_DIR", str(tmp_path))
+    assert expand_path(f"'$YT_STASH_TEST_DIR{os.sep}sub'") == (tmp_path / "sub").resolve()
     assert expand_path("~") == Path.home().resolve()
 
 

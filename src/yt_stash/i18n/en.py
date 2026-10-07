@@ -1,7 +1,7 @@
 """English messages: the reference catalog every other language mirrors key by key.
 
 Templates use ``str.format`` placeholders and may contain rich markup. A sentence is
-always one template; keys ending in ``.one``/``.other`` are picked by :func:`~ytgrab.i18n.tn`.
+always one template; keys ending in ``.one``/``.other`` are picked by :func:`~yt_stash.i18n.tn`.
 """
 
 from __future__ import annotations
@@ -72,10 +72,10 @@ MESSAGES: dict[str, str] = {
     "error.no_video_info": "No video information returned for {url}",
     "error.cookies_load": "Could not load cookies ({auth}): {cause}",
     "urls.invalid_video": "Not a valid YouTube video URL:\n{listing}",
-    "urls.hint_playlist": "Hint: use 'ytgrab playlist <url>' to download a playlist.",
+    "urls.hint_playlist": "Hint: use 'yt-stash playlist <url>' to download a playlist.",
     "urls.no_video": "No video URL was given.",
     "urls.invalid_playlist": "Not a valid YouTube playlist URL: {url}",
-    "urls.hint_video": "Hint: this is a video URL; use 'ytgrab video <url>' instead.",
+    "urls.hint_video": "Hint: this is a video URL; use 'yt-stash video <url>' instead.",
     "urls.cannot_read": "Cannot read URL file '{path}': {reason}",
     "urls.not_utf8": "not a UTF-8 text file",
     "auth.invalid_spec": "Invalid browser specification: '{spec}'.",
@@ -137,7 +137,7 @@ MESSAGES: dict[str, str] = {
     "prompt.require_language": "Enter at least one language code.",
     "prompt.bad_folder_name": "Enter a folder name without slashes.",
     "prompt.no_links": "The file contains no links.",
-    "prompt.no_mode": "No mode given. Use 'ytgrab video <url>...' or 'ytgrab playlist <url>'.",
+    "prompt.no_mode": "No mode given. Use 'yt-stash video <url>...' or 'yt-stash playlist <url>'.",
     "prompt.no_url": "No URL given.",
     "browse.save_here": "Save here",
     "browse.save_into": "Save into {path}",
@@ -286,7 +286,7 @@ MESSAGES: dict[str, str] = {
     # ------------------------------------------------------------------ main menu session
     "session.tagline": "Download YouTube videos and playlists",
     "session.sign_in_reason": "Members-only, private and age-restricted videos need your signed-in YouTube "
-    "account. ytgrab reads the session cookies of your browser or of a cookies.txt file and keeps "
+    "account. yt-stash reads the session cookies of your browser or of a cookies.txt file and keeps "
     "them in memory only; nothing is saved.",
     "session.sign_in_now": "Sign-in: {auth}.",
     "session.language_now": "Language: {name}.",

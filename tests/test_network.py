@@ -2,7 +2,7 @@
 
 import pytest
 
-from ytgrab.cli import main
+from yt_stash.cli import main
 
 ME_AT_THE_ZOO = "https://www.youtube.com/watch?v=jNQXAC9IVRw"  # 19 s, the first YouTube video
 

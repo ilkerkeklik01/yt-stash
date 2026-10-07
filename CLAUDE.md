@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-ytgrab is a cross-platform (Linux/macOS/Windows) Python CLI that downloads YouTube videos and playlists. It is a thin, heavily tested workflow/UX layer over the yt-dlp library, with `rich` for progress and `questionary`/prompt_toolkit for arrow-key menus. Entry point: `ytgrab = ytgrab.cli:main` (also `python -m ytgrab`).
+yt-stash is a cross-platform (Linux/macOS/Windows) Python CLI that downloads YouTube videos and playlists. It is a thin, heavily tested workflow/UX layer over the yt-dlp library, with `rich` for progress and `questionary`/prompt_toolkit for arrow-key menus. Entry point: `yt-stash = yt_stash.cli:main` (also `python -m yt_stash`).
 
 ## Commands
 
@@ -21,11 +21,11 @@ ruff check . && ruff format --check .    # lint + format check (line length 110)
 ruff format .                            # apply formatting
 ```
 
-Without an activated venv, call `.venv/bin/python`, `.venv/bin/pytest`, `.venv/bin/ruff` and `.venv/bin/ytgrab` directly.
+Without an activated venv, call `.venv/bin/python`, `.venv/bin/pytest`, `.venv/bin/ruff` and `.venv/bin/yt-stash` directly.
 
-CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13, plus a smoke test `ytgrab --version && ytgrab video --help`. Code must stay compatible with Python 3.10 and Windows. Python 3.10 has no PEP 701: inside an f-string, use the other quote style (`f"{t('key')}"`).
+CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13, plus a smoke test `yt-stash --version && yt-stash video --help`. Code must stay compatible with Python 3.10 and Windows. Python 3.10 has no PEP 701: inside an f-string, use the other quote style (`f"{t('key')}"`).
 
-The version lives in `src/ytgrab/__init__.py` (read by hatchling).
+The version lives in `src/yt_stash/__init__.py` (read by hatchling).
 
 ## Git workflow
 
@@ -35,7 +35,7 @@ The version lives in `src/ytgrab/__init__.py` (read by hatchling).
 
 `docs/ARCHITECTURE.md` is the authoritative design doc (module table and key decisions) — read it before non-trivial changes and keep it updated when behavior or module responsibilities change. The README documents user-facing behavior, options and exit codes; keep it in sync too.
 
-Flow: `cli.py` (argparse + dependency wiring) → `session.py` (main menu for bare `ytgrab`, one `App` per choice, keeps sign-in between runs) → `app.py` (one run: probe → choose quality/folder → review screen → download → "sign in and retry" recovery).
+Flow: `cli.py` (argparse + dependency wiring) → `session.py` (main menu for bare `yt-stash`, one `App` per choice, keeps sign-in between runs) → `app.py` (one run: probe → choose quality/folder → review screen → download → "sign in and retry" recovery).
 
 Invariants that span multiple files:
 
@@ -60,8 +60,8 @@ Invariants that span multiple files:
 
 ## Gotchas
 
-- Running `ytgrab` by hand reads and writes the real settings file (`~/Library/Application Support/ytgrab/config.json` on macOS). Set `HOME` (and `XDG_CONFIG_HOME`/`APPDATA`) to a temp dir. When testing locale detection, unset `LC_ALL`, which outranks `LANG`.
+- Running `yt-stash` by hand reads and writes the real settings file (`~/Library/Application Support/yt-stash/config.json` on macOS). Set `HOME` (and `XDG_CONFIG_HOME`/`APPDATA`) to a temp dir. When testing locale detection, unset `LC_ALL`, which outranks `LANG`.
 - Interactive menus need a TTY on stdin and stdout; to drive the real app from a script, use Python's `pty.fork()` and send key escapes (`\x1b[B` is ↓, `\r` is Enter).
 - Catalog strings longer than 110 characters are split with implicit concatenation; `i18n/tr.py` is exempt from RUF001/RUF002, because `ı` is a real letter.
-- The `conftest` fixture patches `ytgrab.cli.system_language` and `ytgrab.cli.config_path` by name, so keep importing them into `cli.py` with `from … import`.
+- The `conftest` fixture patches `yt_stash.cli.system_language` and `yt_stash.cli.config_path` by name, so keep importing them into `cli.py` with `from … import`.
 - argparse's `usage:`/`options:` and questionary's `Description:` prefix are hard-coded English in those libraries, not missing catalog keys.

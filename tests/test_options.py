@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from ytgrab.models import AudioOnly, SubtitleOptions, VideoInfo, VideoQuality
-from ytgrab.options import (
+from yt_stash.models import AudioOnly, SubtitleOptions, VideoInfo, VideoQuality
+from yt_stash.options import (
     OUTPUT_TEMPLATE,
     DownloadSettings,
     build_download_params,

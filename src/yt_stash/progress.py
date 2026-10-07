@@ -10,10 +10,10 @@ from rich.filesize import decimal
 from rich.markup import escape
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TaskProgressColumn, TextColumn
 
-from ytgrab.downloader import JobResult, JobStatus
-from ytgrab.errors import VideoError
-from ytgrab.i18n import t
-from ytgrab.models import ProgressEvent, Stage, VideoInfo
+from yt_stash.downloader import JobResult, JobStatus
+from yt_stash.errors import VideoError
+from yt_stash.i18n import t
+from yt_stash.models import ProgressEvent, Stage, VideoInfo
 
 _TITLE_WIDTH = 42
 
@@ -82,7 +82,7 @@ class ProbeProgress(_BaseProgress):
 
 
 class RichProgressReporter(_BaseProgress):
-    """:class:`~ytgrab.downloader.ProgressReporter` with one bar per active download."""
+    """:class:`~yt_stash.downloader.ProgressReporter` with one bar per active download."""
 
     def __init__(self, console: Console, total_jobs: int) -> None:
         super().__init__(console)

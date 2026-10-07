@@ -17,11 +17,11 @@ from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.output.vt100 import Vt100_Output
 from rich.console import Console
 
-from ytgrab.auth import AuthConfig, BrowserSpec
-from ytgrab.downloader import DownloadJob, JobResult, JobStatus
-from ytgrab.errors import UsageError, VideoError
-from ytgrab.i18n import set_language
-from ytgrab.models import (
+from yt_stash.auth import AuthConfig, BrowserSpec
+from yt_stash.downloader import DownloadJob, JobResult, JobStatus
+from yt_stash.errors import UsageError, VideoError
+from yt_stash.i18n import set_language
+from yt_stash.models import (
     AudioOnly,
     DownloadPlan,
     Mode,
@@ -32,8 +32,8 @@ from ytgrab.models import (
     VideoInfo,
     VideoQuality,
 )
-from ytgrab.progress import RichProgressReporter, describe_progress, shorten
-from ytgrab.prompts import (
+from yt_stash.progress import RichProgressReporter, describe_progress, shorten
+from yt_stash.prompts import (
     ESC_TIMEOUT,
     GoBack,
     MenuAction,
@@ -43,7 +43,7 @@ from ytgrab.prompts import (
     describe_subtitles,
     quality_choices,
 )
-from ytgrab.urls import split_urls
+from yt_stash.urls import split_urls
 
 OPTIONS = [
     QualityOption(2160, 60, True, 1),

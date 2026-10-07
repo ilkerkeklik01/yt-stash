@@ -9,11 +9,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
-from ytgrab.concurrency import map_interruptible
-from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError
-from ytgrab.gateway import MediaClient
-from ytgrab.models import ProgressEvent, VideoInfo
-from ytgrab.retry import RetryPolicy, call_with_retry
+from yt_stash.concurrency import map_interruptible
+from yt_stash.errors import DownloadCancelledError, ErrorKind, VideoError
+from yt_stash.gateway import MediaClient
+from yt_stash.models import ProgressEvent, VideoInfo
+from yt_stash.retry import RetryPolicy, call_with_retry
 
 DEFAULT_WORKERS = 3
 MAX_WORKERS = 16

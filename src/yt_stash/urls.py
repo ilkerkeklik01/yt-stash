@@ -10,9 +10,9 @@ import re
 from collections.abc import Iterable
 from urllib.parse import parse_qs, urlsplit
 
-from ytgrab.errors import UsageError
-from ytgrab.i18n import t
-from ytgrab.paths import expand_path
+from yt_stash.errors import UsageError
+from yt_stash.i18n import t
+from yt_stash.paths import expand_path
 
 _VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}")
 _PLAYLIST_ID = re.compile(r"[A-Za-z0-9_-]{2,64}")

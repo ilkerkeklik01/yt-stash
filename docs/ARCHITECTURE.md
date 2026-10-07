@@ -1,6 +1,6 @@
 # Architecture
 
-ytgrab is a thin, well-tested layer of workflow and UX around the yt-dlp library.
+yt-stash is a thin, well-tested layer of workflow and UX around the yt-dlp library.
 Pure decision logic is separated from I/O so that almost everything can be tested
 offline with fakes.
 
@@ -36,13 +36,13 @@ text:        i18n/ (en.py, tr.py catalogs) · settings.py (saved language)
 | `retry.py` | `RetryPolicy` and `call_with_retry`, shared by probing and downloading. |
 | `concurrency.py` | `map_interruptible`: thread pool that stays responsive to Ctrl+C on every OS. |
 | `downloader.py` | `DownloadManager`: concurrent jobs, retries, cancellation, results. |
-| `commandline.py` | Renders the `ytgrab` command that repeats an interactive run without questions. |
+| `commandline.py` | Renders the `yt-stash` command that repeats an interactive run without questions. |
 | `prompts.py` | `Prompter` protocol; `TerminalPrompter` (arrow-key menus via questionary, every entry explained) and `NonInteractivePrompter`. |
 | `browse.py` | Folder listings for the arrow-key file/folder browser (hidden entries skipped, unreadable folders reported). |
 | `viewer.py` | Full-screen, scrollable page (alternate screen) for the setup check and command-line help. |
 | `progress.py` | Live progress bars. |
 | `app.py` | Orchestrates one run: probe, choose, review screen (`DownloadPlan`), download, "ask for sign-in and retry" recovery. |
-| `session.py` | Main menu shown by a bare `ytgrab`: runs one `App` per choice, keeps the sign-in between runs. |
+| `session.py` | Main menu shown by a bare `yt-stash`: runs one `App` per choice, keeps the sign-in between runs. |
 | `cli.py` | Argument parsing, choice of language and dependency wiring. |
 | `i18n/` | Message catalogs (`en.py`, `tr.py`), `t()`/`tn()` lookup and the choice of language. |
 | `settings.py` | Settings kept between runs (the language chosen in the menu) as JSON in the OS config folder. |
@@ -50,7 +50,7 @@ text:        i18n/ (en.py, tr.py catalogs) · settings.py (saved language)
 ## Key decisions
 
 **Quality selection with `res:<height>` sorting.** Instead of a strict filter like
-`height=1080` (which fails for videos without that height), ytgrab passes
+`height=1080` (which fails for videos without that height), yt-stash passes
 `format_sort=["res:1080", "fps", …]`. yt-dlp then prefers the largest resolution ≤ 1080,
 falling back to the smallest above it. One choice therefore works for a whole playlist.
 
@@ -109,7 +109,7 @@ the question then raises `GoBack`. Whoever asked decides where "back" leads: a
 multi-step question (sign-in, subtitles) returns to its first step, the review screen
 keeps the old value, the folder question returns to the quality question, and anything
 else leaves `App.run()` so the session shows the main menu (or the CLI cancels). Menus need a terminal on stdin *and*
-stdout; otherwise ytgrab behaves as with `--yes`.
+stdout; otherwise yt-stash behaves as with `--yes`.
 
 **All user-visible text comes from the catalogs.** Code calls `t("key", **values)` (or
 `tn` for counts) when it shows text, never at import time, so choosing a language in the
@@ -125,7 +125,7 @@ catalog has the same keys, placeholders and markup, and that every key exists an
 one module variable instead of passing a translator to every object. It is written only on
 the main thread (at start-up, and from the main menu while nothing downloads) and only read
 by worker threads, and it is the only hidden input of the pure modules (their messages). `cli.main` chooses it before building the argument parser so `--help`
-is translated: `--lang`, `YTGRAB_LANG`, the saved choice, the system language, English.
+is translated: `--lang`, `YT_STASH_LANG`, the saved choice, the system language, English.
 argparse's own words (`usage:`, `options:`) and questionary's `Description:` stay English.
 
 **Errors never abort the batch.** Every per-video problem becomes a `ProbeFailure` or a

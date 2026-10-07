@@ -17,7 +17,7 @@ from typing import Any
 def config_path(
     platform: str = sys.platform, environ: Mapping[str, str] = os.environ, home: Path | None = None
 ) -> Path:
-    """``%APPDATA%\\ytgrab``, ``~/Library/Application Support/ytgrab`` or ``~/.config/ytgrab``."""
+    """``%APPDATA%\\yt-stash``, ``~/Library/Application Support/yt-stash`` or ``~/.config/yt-stash``."""
 
     def base_dir(variable: str, *fallback: str) -> Path:
         value = environ.get(variable)
@@ -29,7 +29,7 @@ def config_path(
         base = (home or Path.home()) / "Library" / "Application Support"
     else:
         base = base_dir("XDG_CONFIG_HOME", ".config")
-    return base / "ytgrab" / "config.json"
+    return base / "yt-stash" / "config.json"
 
 
 def load_settings(path: Path) -> dict[str, Any]:

@@ -1,4 +1,4 @@
-"""Render the ``ytgrab`` command line that repeats an interactive run without questions."""
+"""Render the ``yt-stash`` command line that repeats an interactive run without questions."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ import subprocess
 import sys
 from collections.abc import Sequence
 
-from ytgrab.auth import AuthConfig
-from ytgrab.downloader import DEFAULT_WORKERS
-from ytgrab.models import AudioOnly, DownloadPlan, Mode
-from ytgrab.options import DEFAULT_CONTAINER
-from ytgrab.paths import display_path
+from yt_stash.auth import AuthConfig
+from yt_stash.downloader import DEFAULT_WORKERS
+from yt_stash.models import AudioOnly, DownloadPlan, Mode
+from yt_stash.options import DEFAULT_CONTAINER
+from yt_stash.paths import display_path
 
 # More URLs than this make the command unreadable; a placeholder is shown instead.
 MAX_LISTED_URLS = 3
@@ -26,7 +26,7 @@ def _join(argv: Sequence[str]) -> str:
 
 def equivalent_command(mode: Mode, urls: Sequence[str], plan: DownloadPlan, auth: AuthConfig) -> str:
     """The non-interactive command that downloads ``urls`` with exactly the choices of ``plan``."""
-    argv = ["ytgrab", mode.value]
+    argv = ["yt-stash", mode.value]
     argv += list(urls) if len(urls) <= MAX_LISTED_URLS else ["URL..."]
 
     if isinstance(plan.selection, AudioOnly):

@@ -1,7 +1,7 @@
 import pytest
 
-from ytgrab.errors import UsageError
-from ytgrab.urls import (
+from yt_stash.errors import UsageError
+from yt_stash.urls import (
     extract_playlist_id,
     extract_video_id,
     normalize_playlist_url,
@@ -68,7 +68,7 @@ def test_normalize_video_urls_lists_all_invalid_inputs():
 
 
 def test_normalize_video_urls_hints_playlist_mode():
-    with pytest.raises(UsageError, match="ytgrab playlist"):
+    with pytest.raises(UsageError, match="yt-stash playlist"):
         normalize_video_urls(["https://www.youtube.com/playlist?list=PLabcdef"])
 
 
@@ -98,5 +98,5 @@ def test_normalize_playlist_url_is_canonical():
 
 
 def test_normalize_playlist_url_hints_video_mode():
-    with pytest.raises(UsageError, match="ytgrab video"):
+    with pytest.raises(UsageError, match="yt-stash video"):
         normalize_playlist_url(f"https://youtu.be/{VIDEO_ID}")

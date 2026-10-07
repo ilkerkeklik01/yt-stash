@@ -7,19 +7,20 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab.settings import config_path, load_settings, save_setting
+from yt_stash.settings import config_path, load_settings, save_setting
 
 HOME = Path("/home/me")
 
 
 def test_config_path_per_platform():
-    assert config_path("linux", {}, HOME) == HOME / ".config" / "ytgrab" / "config.json"
-    assert config_path("linux", {"XDG_CONFIG_HOME": "/xdg"}, HOME) == Path("/xdg/ytgrab/config.json")
+    assert config_path("linux", {}, HOME) == HOME / ".config" / "yt-stash" / "config.json"
+    assert config_path("linux", {"XDG_CONFIG_HOME": "/xdg"}, HOME) == Path("/xdg/yt-stash/config.json")
     assert (
-        config_path("darwin", {}, HOME) == HOME / "Library" / "Application Support" / "ytgrab" / "config.json"
+        config_path("darwin", {}, HOME)
+        == HOME / "Library" / "Application Support" / "yt-stash" / "config.json"
     )
-    assert config_path("win32", {"APPDATA": "/appdata"}, HOME) == Path("/appdata/ytgrab/config.json")
-    assert config_path("win32", {}, HOME) == HOME / "AppData" / "Roaming" / "ytgrab" / "config.json"
+    assert config_path("win32", {"APPDATA": "/appdata"}, HOME) == Path("/appdata/yt-stash/config.json")
+    assert config_path("win32", {}, HOME) == HOME / "AppData" / "Roaming" / "yt-stash" / "config.json"
 
 
 def test_missing_or_damaged_file_means_no_settings(tmp_path):

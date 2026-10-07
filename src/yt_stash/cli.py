@@ -14,32 +14,32 @@ from typing import Any
 from rich.console import Console
 from rich.markup import escape
 
-from ytgrab import __version__
-from ytgrab.app import App, CookieLoader, RunOptions
-from ytgrab.auth import AuthConfig, PastedCookies, parse_pasted_cookies
-from ytgrab.downloader import DEFAULT_WORKERS, MAX_WORKERS
-from ytgrab.environment import detect_environment
-from ytgrab.errors import EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE, UsageError, YtGrabError
-from ytgrab.formats import AUDIO_CODECS, parse_quality
-from ytgrab.gateway import LoadedCookies, YtDlpClient, load_auth_cookies
-from ytgrab.i18n import LANGUAGES, resolve_language, set_language, system_language, t
-from ytgrab.models import Mode, SubtitleOptions
-from ytgrab.options import CONTAINERS, DEFAULT_CONTAINER, split_languages
-from ytgrab.paths import expand_path
-from ytgrab.prompts import GoBack, NonInteractivePrompter, TerminalPrompter
-from ytgrab.session import Session
-from ytgrab.settings import config_path, load_settings
-from ytgrab.urls import read_url_file
+from yt_stash import __version__
+from yt_stash.app import App, CookieLoader, RunOptions
+from yt_stash.auth import AuthConfig, PastedCookies, parse_pasted_cookies
+from yt_stash.downloader import DEFAULT_WORKERS, MAX_WORKERS
+from yt_stash.environment import detect_environment
+from yt_stash.errors import EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE, UsageError, YtStashError
+from yt_stash.formats import AUDIO_CODECS, parse_quality
+from yt_stash.gateway import LoadedCookies, YtDlpClient, load_auth_cookies
+from yt_stash.i18n import LANGUAGES, resolve_language, set_language, system_language, t
+from yt_stash.models import Mode, SubtitleOptions
+from yt_stash.options import CONTAINERS, DEFAULT_CONTAINER, split_languages
+from yt_stash.paths import expand_path
+from yt_stash.prompts import GoBack, NonInteractivePrompter, TerminalPrompter
+from yt_stash.session import Session
+from yt_stash.settings import config_path, load_settings
+from yt_stash.urls import read_url_file
 
 # (command, catalog key of its explanation or None); commands are never translated.
 _EXAMPLES = (
-    ("ytgrab", "cli.example.menu"),
-    ("ytgrab video https://youtu.be/dQw4w9WgXcQ", "cli.example.one_video"),
-    ("ytgrab video URL1 URL2 -q 720 -o ~/Videos", "cli.example.several"),
-    ('ytgrab playlist "https://www.youtube.com/playlist?list=PL..." -j 4', None),
-    ("ytgrab video URL --cookies-from-browser firefox", "cli.example.members"),
-    ("ytgrab video URL --audio-only mp3", None),
-    ("ytgrab --lang tr", "cli.example.language"),
+    ("yt-stash", "cli.example.menu"),
+    ("yt-stash video https://youtu.be/dQw4w9WgXcQ", "cli.example.one_video"),
+    ("yt-stash video URL1 URL2 -q 720 -o ~/Videos", "cli.example.several"),
+    ('yt-stash playlist "https://www.youtube.com/playlist?list=PL..." -j 4', None),
+    ("yt-stash video URL --cookies-from-browser firefox", "cli.example.members"),
+    ("yt-stash video URL --audio-only mp3", None),
+    ("yt-stash --lang tr", "cli.example.language"),
 )
 
 
@@ -65,7 +65,7 @@ def _add_common_options(parser: argparse.ArgumentParser, *, is_subcommand: bool)
 
     Real defaults live on the top-level parser only; on subcommands they are SUPPRESSed,
     otherwise argparse would overwrite a value given before the subcommand with the
-    subcommand's default (``ytgrab -v video URL``).
+    subcommand's default (``yt-stash -v video URL``).
     """
 
     def add(group: Any, *flags: str, **kwargs: Any) -> None:
@@ -132,7 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
     formatter = argparse.RawDescriptionHelpFormatter
     epilog = _epilog()
     parser = argparse.ArgumentParser(
-        prog="ytgrab",
+        prog="yt-stash",
         description=t("cli.description"),
         epilog=epilog,
         formatter_class=formatter,
@@ -186,7 +186,7 @@ def options_from_args(args: argparse.Namespace) -> RunOptions:
 def _choose_language(argv: Sequence[str] | None, settings_file: Path) -> None:
     """Set the language before any text is built, including the ``--help`` text.
 
-    Priority: ``--lang``, ``YTGRAB_LANG``, the choice saved from the main menu, the system
+    Priority: ``--lang``, ``YT_STASH_LANG``, the choice saved from the main menu, the system
     language, English. An invalid ``--lang`` is ignored here; the real parser reports it.
     """
     early = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
@@ -196,7 +196,7 @@ def _choose_language(argv: Sequence[str] | None, settings_file: Path) -> None:
     set_language(
         resolve_language(
             flag,
-            os.environ.get("YTGRAB_LANG"),
+            os.environ.get("YT_STASH_LANG"),
             saved if isinstance(saved, str) else None,
             system_language(),
         )
@@ -227,7 +227,7 @@ def _read_pasted_cookies(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Entry point of the ``ytgrab`` command. Returns the process exit code."""
+    """Entry point of the ``yt-stash`` command. Returns the process exit code."""
     settings_file = config_path()
     _choose_language(argv, settings_file)
     parser = build_parser()
@@ -276,7 +276,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except GoBack:  # Esc with nothing to go back to
         console.print(t("cancelled"))
         return EXIT_OK
-    except YtGrabError as error:
+    except YtStashError as error:
         console.print(t("cli.error", message=escape(str(error))))
         return error.exit_code
     except EOFError:  # stdin closed while a question was asked

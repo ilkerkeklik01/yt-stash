@@ -1,4 +1,4 @@
-"""End-to-end workflow tests of :class:`ytgrab.app.App` with fake I/O."""
+"""End-to-end workflow tests of :class:`yt_stash.app.App` with fake I/O."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from ytgrab.app import App, RunOptions
-from ytgrab.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
-from ytgrab.environment import Environment
-from ytgrab.errors import AuthConfigError, OutputDirectoryError, UsageError, VideoError
-from ytgrab.gateway import LoadedCookies
-from ytgrab.models import AudioOnly, Mode, SubtitleOptions, VideoQuality
-from ytgrab.prompts import GoBack, NonInteractivePrompter, ReviewAction
-from ytgrab.retry import RetryPolicy
+from yt_stash.app import App, RunOptions
+from yt_stash.auth import AuthConfig, BrowserSpec, parse_pasted_cookies
+from yt_stash.environment import Environment
+from yt_stash.errors import AuthConfigError, OutputDirectoryError, UsageError, VideoError
+from yt_stash.gateway import LoadedCookies
+from yt_stash.models import AudioOnly, Mode, SubtitleOptions, VideoQuality
+from yt_stash.prompts import GoBack, NonInteractivePrompter, ReviewAction
+from yt_stash.retry import RetryPolicy
 
 from conftest import FakeClient, ScriptedPrompter, url_of, vid, video_info
 
@@ -470,7 +470,7 @@ def test_interactive_run_prints_equivalent_command(tmp_path):
     harness = Harness(tmp_path, videos_client(vid(1)))
     harness.run(mode=Mode.VIDEO, urls=(vid(1),))
     assert "skip the questions" in harness.text
-    assert "ytgrab video" in harness.text and url_of(vid(1)) in harness.text
+    assert "yt-stash video" in harness.text and url_of(vid(1)) in harness.text
     assert "-q 1080 -o" in harness.text
     assert "--yes" in harness.text
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ytgrab.models import AudioOnly, Selection, SubtitleOptions, VideoInfo
+from yt_stash.models import AudioOnly, Selection, SubtitleOptions, VideoInfo
 
 CONTAINERS = ("mp4", "mkv", "webm")
 DEFAULT_CONTAINER = "mp4"

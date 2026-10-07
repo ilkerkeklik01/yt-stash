@@ -19,7 +19,7 @@ from prompt_toolkit.output import Output
 from prompt_toolkit.styles import Style
 from rich.console import Console, RenderableType
 
-from ytgrab.i18n import t
+from yt_stash.i18n import t
 
 # How long a lone Esc byte waits for the rest of a key sequence such as an arrow key.
 # prompt_toolkit's 0.5 s makes Esc feel sluggish; 0.1 s is vim's default.

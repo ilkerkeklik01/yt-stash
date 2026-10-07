@@ -13,9 +13,9 @@ from pathlib import Path
 
 from yt_dlp.cookies import SUPPORTED_BROWSERS, SUPPORTED_KEYRINGS
 
-from ytgrab.errors import AuthConfigError
-from ytgrab.i18n import t, tn
-from ytgrab.paths import expand_path
+from yt_stash.errors import AuthConfigError
+from yt_stash.i18n import t, tn
+from yt_stash.paths import expand_path
 
 # Same syntax as yt-dlp: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
 _BROWSER_SPEC = re.compile(

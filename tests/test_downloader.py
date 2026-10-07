@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from ytgrab.concurrency import map_interruptible
-from ytgrab.downloader import DownloadJob, DownloadManager, JobStatus
-from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError
-from ytgrab.models import VideoInfo
-from ytgrab.retry import RetryPolicy
+from yt_stash.concurrency import map_interruptible
+from yt_stash.downloader import DownloadJob, DownloadManager, JobStatus
+from yt_stash.errors import DownloadCancelledError, ErrorKind, VideoError
+from yt_stash.models import VideoInfo
+from yt_stash.retry import RetryPolicy
 
 from conftest import FakeClient, url_of, vid
 

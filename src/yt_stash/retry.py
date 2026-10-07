@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError
+from yt_stash.errors import DownloadCancelledError, ErrorKind, VideoError
 
 R = TypeVar("R")
 RetryCallback = Callable[[int, float, VideoError], None]  # (failed attempt, delay, error)
