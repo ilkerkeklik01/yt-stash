@@ -27,7 +27,7 @@ text:        i18n/ (en.py, tr.py catalogs) · settings.py (saved language)
 | `urls.py` | Validates every YouTube URL form, extracts ids, returns canonical de-duplicated URLs. |
 | `formats.py` | Turns yt-dlp format lists into resolutions, builds the batch-wide quality menu, default rule (1080p → max), `--quality` parsing. |
 | `options.py` | Translates `DownloadSettings` into yt-dlp parameter dicts (format sort, container, subtitles, overwrite policy, file names). |
-| `errors.py` | Exception hierarchy; classifies yt-dlp messages into `ErrorKind` (auth, unavailable, rate-limited, network, …). |
+| `errors.py` | Exception hierarchy; classifies yt-dlp messages into `ErrorKind` (auth, unavailable, rate-limited, network, …); `strip_control` removes terminal control characters from remote text. |
 | `auth.py` | Browser/cookies-file authentication settings and validation. |
 | `paths.py` | Target directory checks (creatable, writable) and portable folder names. |
 | `environment.py` | Detects ffmpeg and JavaScript runtimes. |
@@ -65,6 +65,9 @@ carries per-download hooks).
 prompts. `load_auth_cookies` reads them once, serialises them, and every yt-dlp
 instance receives its own in-memory copy (`io.StringIO`). This also guarantees that
 yt-dlp never writes back to the user's `cookies.txt`.
+Cookie files are filtered in memory (`auth.filter_cookie_file_text`) before yt-dlp parses them:
+it prints malformed lines, values included, to stderr regardless of `quiet`. Load errors that quote
+a cookie line (`http.cookiejar.LoadError`) are replaced by a fixed message.
 
 **Cancellation.** The main thread waits on futures with a short timeout so Ctrl+C is
 delivered promptly on every OS (including Windows). On interrupt a shared `Event` is set;
@@ -137,3 +140,8 @@ failed `JobResult`; the summary lists them and the exit code becomes 1.
   hooks, cancellation and error translation; cookie loading uses real yt-dlp offline.
 - `tests/test_network.py` (marker `network`, excluded by default) downloads a real
   19-second video end to end.
+
+**Remote text is untrusted.** Titles, channel names and yt-dlp messages pass through
+`errors.strip_control` (probe results, `_normalize`), because rich only escapes markup, not terminal
+escape sequences. `paths.sanitize_component` also drops `$` and `%`, since yt-dlp expands environment
+variables in the output folder.

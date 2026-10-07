@@ -201,13 +201,21 @@ class App:
         """(Re)create the client, loading cookies first if authentication is configured."""
         cookies = None
         if auth.is_configured:
-            cookies = self._cookie_loader(auth)
+            try:
+                cookies = self._cookie_loader(auth)
+            except AuthConfigError:
+                if auth.pasted:
+                    auth.pasted.discard()  # never adopted as self._auth, so the final discard misses it
+                raise
             if cookies.youtube_cookie_count == 0:
                 self._console.print(f"[yellow]{t('app.no_cookies', auth=escape(auth.describe()))}")
             else:
                 self._console.print(f"[dim]{t('app.using_auth', auth=escape(auth.describe()))}")
         self._connected_client = self._client_factory(cookies)
+        previous = self._auth.pasted
         self._auth = auth
+        if previous is not None and previous is not auth.pasted:
+            previous.discard()  # replaced by a newer sign-in
 
     def _reauthenticate(self, reason: str) -> bool:
         """Ask the user for sign-in cookies and reconnect. True if a new client is ready."""

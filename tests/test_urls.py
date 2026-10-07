@@ -45,6 +45,7 @@ def test_extract_video_id_accepts_all_common_forms(raw):
         "https://www.youtube.com/@somechannel",
         f"https://evil.com/watch?v={VIDEO_ID}",
         f"https://youtube.com.evil.com/watch?v={VIDEO_ID}",
+        f"https://www.youtube.com/watch?v={VIDEO_ID}%0A",
     ],
 )
 def test_extract_video_id_rejects_non_videos(raw):

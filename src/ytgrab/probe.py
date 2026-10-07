@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ytgrab.concurrency import map_interruptible
-from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError
+from ytgrab.errors import DownloadCancelledError, ErrorKind, VideoError, strip_control
 from ytgrab.formats import resolutions_from_formats
 from ytgrab.gateway import MediaClient
 from ytgrab.i18n import t
@@ -53,13 +53,13 @@ def playlist_from_info(info: Mapping[str, Any], url: str) -> PlaylistInfo:
         targets.append(
             ProbeTarget(
                 url=canonical_video_url(entry["id"]),
-                title=entry.get("title"),
+                title=strip_control(entry["title"]) if isinstance(entry.get("title"), str) else None,
                 playlist_index=entry.get("playlist_index") or position,
             )
         )
     return PlaylistInfo(
         id=str(info.get("id") or ""),
-        title=str(info.get("title") or info.get("id") or url),
+        title=strip_control(str(info.get("title") or info.get("id") or url)),
         entries=tuple(targets),
     )
 
@@ -79,11 +79,11 @@ def video_from_info(info: Mapping[str, Any], target: ProbeTarget) -> VideoInfo:
     duration = info.get("duration")
     return VideoInfo(
         id=str(info["id"]),
-        title=str(info.get("title") or target.title or info["id"]),
+        title=strip_control(str(info.get("title") or target.title or info["id"])),
         url=target.url,
         resolutions=resolutions_from_formats(info.get("formats") or []),
         duration=int(duration) if isinstance(duration, (int, float)) else None,
-        channel=info.get("channel") or info.get("uploader"),
+        channel=strip_control(str(ch)) if (ch := info.get("channel") or info.get("uploader")) else None,
         playlist_index=target.playlist_index,
     )
 

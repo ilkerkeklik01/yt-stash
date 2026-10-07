@@ -196,3 +196,41 @@ def test_load_pasted_cookies_in_memory(tmp_path, monkeypatch):
     assert cookies.youtube_cookie_count == 2
     assert "SID\tsecret" in cookies.text
     assert list(tmp_path.iterdir()) == []  # nothing was written to disk
+
+
+def test_malformed_cookie_lines_are_never_echoed(tmp_path, monkeypatch, capfd):
+    monkeypatch.undo()
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text(
+        "# Netscape HTTP Cookie File\n"
+        ".youtube.com TRUE / TRUE 0 SAPISID SPACE_SEPARATED_SECRET\n"
+        ".youtube.com\tTRUE\t/\tTRUE\t" + "9" * 400 + "\tSAPISID\tHUGE_EXPIRY_SECRET\n"
+        ".youtube.com\tTRUE\t/\tTRUE\t2147483647\tSID\tgood\n",
+        encoding="utf-8",
+    )
+    cookies = load_auth_cookies(AuthConfig(cookies_file=cookie_file))
+    captured = capfd.readouterr()
+    assert cookies.youtube_cookie_count == 1
+    assert "SECRET" not in captured.out + captured.err
+    assert "SECRET" not in cookies.text
+
+
+def test_cookie_load_errors_do_not_quote_cookie_lines(monkeypatch):
+    from http.cookiejar import LoadError
+
+    from yt_dlp.cookies import CookieLoadError
+
+    def broken(*args, **kwargs):
+        try:
+            raise LoadError("invalid Netscape format cookies file: 'SAPISID\tTOPSECRET'")
+        except LoadError as inner:
+            raise CookieLoadError("cannot load") from inner
+
+    monkeypatch.setattr(gateway, "load_cookies", broken)
+    with pytest.raises(AuthConfigError) as caught:
+        load_auth_cookies(AuthConfig(pasted=parse_pasted_cookies("SID=x")))
+    assert "TOPSECRET" not in str(caught.value)
+
+
+def test_loaded_cookies_repr_hides_the_cookie_text():
+    assert "secret" not in repr(gateway.LoadedCookies("secret", 1))

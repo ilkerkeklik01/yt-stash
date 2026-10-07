@@ -10,7 +10,8 @@ from pathlib import Path
 from ytgrab.errors import OutputDirectoryError
 from ytgrab.i18n import t
 
-_ILLEGAL_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+# "$" and "%" are dropped too: yt-dlp expands environment variables in the output folder.
+_ILLEGAL_CHARS = re.compile(r'[<>:"/\\|?*$%\x00-\x1f\x7f-\x9f]')
 _WINDOWS_RESERVED = frozenset(
     {"CON", "PRN", "AUX", "NUL"} | {f"COM{i}" for i in range(1, 10)} | {f"LPT{i}" for i in range(1, 10)}
 )
