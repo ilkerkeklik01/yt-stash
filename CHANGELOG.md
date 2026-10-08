@@ -9,6 +9,10 @@ the environment variables and settings file described in the documentation.
 
 ## [Unreleased]
 
+### Added
+
+- Reference recipes for Homebrew, Scoop and the AUR in `packaging/` (not published yet).
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

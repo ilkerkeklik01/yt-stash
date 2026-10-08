@@ -57,6 +57,8 @@ Work on a branch such as `chore/release-1.1.0` and merge it through a pull reque
 5. Watch the *Release* workflow in the Actions tab. When it finishes, check
    <https://pypi.org/project/yt-stash/> and run `pipx install yt-stash` (or `pipx upgrade yt-stash`)
    in a clean environment.
+6. Update the recipes in [`packaging/`](../packaging/README.md) and the repositories they are published
+   to, once they exist.
 
 The workflow refuses to publish if the tag doesn't match `__version__` or the changelog has no section
 for the version.
