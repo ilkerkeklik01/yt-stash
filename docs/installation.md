@@ -11,8 +11,8 @@ strongly recommended:
 yt-stash shows a warning when one is missing, and **Check setup** in the main menu tells you what is
 found and how to install the rest.
 
-Pick your system: [macOS](#macos) · [Windows](#windows) · [Linux](#linux) · [From source](#from-source) ·
-[Update or uninstall](#update-and-uninstall)
+Pick your system: [macOS](#macos) · [Windows](#windows) · [Linux](#linux) · [Package managers](#package-managers) ·
+[From source](#from-source) · [Update or uninstall](#update-and-uninstall)
 
 ---
 
@@ -161,6 +161,13 @@ pip install yt-stash
 
 Avoid `pip install` into the system Python: recent Linux distributions refuse it (PEP 668), and pipx
 exists to solve exactly that.
+
+## Package managers
+
+Recipes for Homebrew, Scoop and the AUR are being prepared (see
+[issue #13](https://github.com/ilkerkeklik01/yt-stash/issues/13) and the reference recipes in
+[`packaging/`](../packaging)). They are **not published yet**; until then use the steps above. Once a
+package is available it is listed here, with ffmpeg and deno installed as dependencies.
 
 ## From source
 
