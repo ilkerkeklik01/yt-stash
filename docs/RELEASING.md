@@ -58,7 +58,10 @@ Work on a branch such as `chore/release-1.1.0` and merge it through a pull reque
    <https://pypi.org/project/yt-stash/> and run `pipx install yt-stash` (or `pipx upgrade yt-stash`)
    in a clean environment.
 6. Update the recipes in [`packaging/`](../packaging/README.md) and the repositories they are published
-   to, once they exist.
+   to. For the Homebrew tap, wait 24 hours after the upload (Homebrew ignores newer files), then merge
+   the version-bump pull request that the tap's daily *brew bump* workflow opens, or run
+   `brew update-python-resources` yourself in a pull request there. Check that the pull request's
+   `brew test-bot` checks are green and that the `resource` blocks changed along with the version.
 
 The workflow refuses to publish if the tag doesn't match `__version__` or the changelog has no section
 for the version.

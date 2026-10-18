@@ -75,7 +75,7 @@ yt-stash needs Python 3.10+; install **ffmpeg** and **deno** too for full qualit
 
 | System | Install |
 |---|---|
-| **macOS** | `brew install python pipx ffmpeg deno && pipx ensurepath`, then `pipx install yt-stash` |
+| **macOS** | `brew install python pipx ffmpeg deno && pipx ensurepath`, then `pipx install yt-stash` (or `brew install ilkerkeklik01/tap/yt-stash`, which brings its own ffmpeg and deno) |
 | **Windows** (PowerShell) | `winget install Python.Python.3.13`, `winget install Gyan.FFmpeg`, `winget install DenoLand.Deno`, reopen PowerShell, `py -m pip install --user pipx`, `py -m pipx ensurepath`, reopen, then `pipx install yt-stash` |
 | **Debian / Ubuntu** | `sudo apt install python3 pipx ffmpeg && pipx ensurepath`, install [deno](https://deno.com), then `pipx install yt-stash` |
 | **Fedora / Arch / openSUSE / uv / pip / source** | see the [installation guide](https://github.com/ilkerkeklik01/yt-stash/blob/main/docs/installation.md) |

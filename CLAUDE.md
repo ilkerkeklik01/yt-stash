@@ -31,6 +31,8 @@ The version lives in `src/yt_stash/__init__.py` (read by hatchling). The project
 
 `main` is protected on GitHub (pull request and all CI checks required, no force-push, applies to admins). Never commit or push to `main`: branch first (`feature/…`, `fix/…`, `docs/…`, `chore/…`, kebab-case), push the branch, and open a PR against `main` with `gh pr create`. If the branch is behind `main`, merge `origin/main` into it rather than force-pushing over `main`. Details in `CONTRIBUTING.md`. If you change job names or the OS/Python matrix in `ci.yml`, the required checks in the branch protection must be updated too.
 
+The Homebrew tap `ilkerkeklik01/homebrew-tap` is a separate repository (the formula with pinned `resource` blocks; `packaging/` here only holds reference recipes) with the same protection on its `main`, so use branch + PR there too. Release steps for it are in `docs/RELEASING.md` and `packaging/README.md`.
+
 ## Architecture
 
 `docs/ARCHITECTURE.md` is the authoritative design doc (module table and key decisions) — read it before non-trivial changes and keep it updated when behavior or module responsibilities change. User-facing documentation lives in `README.md` (overview, quickstart, install summary) and `docs/` (`installation.md`, `usage.md`, `authentication.md`, `troubleshooting.md`, `translating.md`); keep them in sync with behavior, options and exit codes. README links must be absolute URLs because PyPI renders it as the project description.

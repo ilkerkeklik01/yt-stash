@@ -11,7 +11,8 @@ the environment variables and settings file described in the documentation.
 
 ### Added
 
-- Reference recipes for Homebrew, Scoop and the AUR in `packaging/` (not published yet).
+- Reference recipes for Homebrew, Scoop and the AUR in `packaging/`.
+- Homebrew install through a tap: `brew install ilkerkeklik01/tap/yt-stash`.
 
 ## [1.0.1] - 2026-10-08
 
