@@ -7,7 +7,7 @@ is where users install it from; these copies are the starting point and are upda
 
 | System | Recipe | Publish to | Status |
 |---|---|---|---|
-| Homebrew | [`homebrew/yt-stash.rb`](homebrew/yt-stash.rb) | tap `ilkerkeklik01/homebrew-tap`, folder `Formula/` | needs `resource` blocks, untested |
+| Homebrew | [`homebrew/yt-stash.rb`](homebrew/yt-stash.rb) | tap `ilkerkeklik01/homebrew-tap`, folder `Formula/` | **published**: [`ilkerkeklik01/homebrew-tap`](https://github.com/ilkerkeklik01/homebrew-tap) |
 | Scoop | [`scoop/yt-stash.json`](scoop/yt-stash.json) | bucket repository, folder `bucket/` | untested (needs Windows) |
 | AUR | [`aur/PKGBUILD`](aur/PKGBUILD) | `ssh://aur@aur.archlinux.org/yt-stash.git` | untested (needs Arch) |
 
@@ -16,16 +16,30 @@ and wheel are on <https://pypi.org/project/yt-stash/#files>.
 
 ## Homebrew
 
-1. Create the repository `ilkerkeklik01/homebrew-tap` and copy the formula to `Formula/yt-stash.rb`.
-2. Generate the Python dependency blocks (Homebrew ignores files uploaded in the last 24 hours, so
-   wait a day after a release):
+The tap [`ilkerkeklik01/homebrew-tap`](https://github.com/ilkerkeklik01/homebrew-tap) is live; users
+run `brew install ilkerkeklik01/tap/yt-stash`. The copy in this folder is the version without `resource`
+blocks; the tap holds the real formula, with the Python dependencies pinned. The tap was created with
+`brew tap-new`, so it has Homebrew's CI (`brew test-bot` on macOS and Linux), a daily *brew bump*
+workflow that opens a pull request when PyPI has a newer yt-stash, and Dependabot for the workflow
+actions. Its `main` branch is protected like this repository's: pull request required, both
+`test-bot` checks required, up to date with `main`, conversations resolved, no force-push or deletion,
+administrators included. If the tap's workflow job names or OS matrix change, update the required checks
+in its branch protection too.
 
-   ```bash
-   brew tap ilkerkeklik01/tap
-   brew update-python-resources ilkerkeklik01/tap/yt-stash
-   ```
+To update the formula by hand (Homebrew ignores files uploaded in the last 24 hours, so wait a day
+after a release), on a branch of the tap:
 
-3. Test: `brew install --build-from-source ilkerkeklik01/tap/yt-stash && brew test yt-stash && brew audit --strict --online ilkerkeklik01/tap/yt-stash`.
+```bash
+brew tap ilkerkeklik01/tap
+# edit url and sha256 in Formula/yt-stash.rb to the new sdist, then:
+brew update-python-resources ilkerkeklik01/tap/yt-stash
+brew install --build-from-source ilkerkeklik01/tap/yt-stash
+brew test yt-stash
+brew audit --strict --online ilkerkeklik01/tap/yt-stash
+```
+
+The tap has no bottles (prebuilt binaries); the formula builds from the PyPI sdist on install, so the
+tap's `brew pr-pull` publish workflow is not used.
 
 ## Scoop
 
@@ -42,5 +56,6 @@ and `.SRCINFO`.
 
 ## At each release
 
-Bump the version, URLs and checksums in all three recipes (Scoop and Homebrew can do it
-automatically as described above; the AUR needs `pkgver` and `sha256sums`, or `updpkgsums`).
+Bump the version, URLs and checksums in all three recipes, here and in the places they are published
+(the Homebrew tap's *brew bump* workflow and Scoop's `autoupdate` can do it automatically; the AUR
+needs `pkgver` and `sha256sums`, or `updpkgsums`).

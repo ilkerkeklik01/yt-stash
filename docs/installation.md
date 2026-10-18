@@ -164,10 +164,24 @@ exists to solve exactly that.
 
 ## Package managers
 
-Recipes for Homebrew, Scoop and the AUR are being prepared (see
+### Homebrew (macOS and Linux)
+
+```bash
+brew install ilkerkeklik01/tap/yt-stash
+```
+
+This installs yt-stash from the [`ilkerkeklik01/homebrew-tap`](https://github.com/ilkerkeklik01/homebrew-tap)
+tap, together with Python, ffmpeg and deno, so you need no other step from the macOS section. The formula
+pins the yt-dlp version that was current at release time, so a YouTube change can reach Homebrew users a
+little later than `pipx upgrade yt-stash`. If downloads fail and `brew upgrade yt-stash` finds nothing
+new, install with pipx instead.
+
+### Scoop and the AUR
+
+Recipes for Scoop and the AUR are being prepared (see
 [issue #13](https://github.com/ilkerkeklik01/yt-stash/issues/13) and the reference recipes in
-[`packaging/`](../packaging)). They are **not published yet**; until then use the steps above. Once a
-package is available it is listed here, with ffmpeg and deno installed as dependencies.
+[`packaging/`](../packaging)). They are **not published yet**; until then use the steps for your system
+above.
 
 ## From source
 
@@ -194,10 +208,10 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for the development workflow.
 YouTube changes often and yt-stash relies on [yt-dlp](https://github.com/yt-dlp/yt-dlp) to follow it.
 **If downloads suddenly start failing, update first.**
 
-| | pipx | uv | pip |
-|---|---|---|---|
-| Update yt-stash and yt-dlp | `pipx upgrade yt-stash` | `uv tool upgrade yt-stash` | `pip install -U yt-stash` |
-| Uninstall | `pipx uninstall yt-stash` | `uv tool uninstall yt-stash` | `pip uninstall yt-stash` |
+| | pipx | uv | pip | Homebrew |
+|---|---|---|---|---|
+| Update yt-stash and yt-dlp | `pipx upgrade yt-stash` | `uv tool upgrade yt-stash` | `pip install -U yt-stash` | `brew update && brew upgrade yt-stash` |
+| Uninstall | `pipx uninstall yt-stash` | `uv tool uninstall yt-stash` | `pip uninstall yt-stash` | `brew uninstall yt-stash` |
 
 yt-stash keeps one small file, `config.json`, holding the language you picked in the menu. Delete it
 after uninstalling if you want no trace:
