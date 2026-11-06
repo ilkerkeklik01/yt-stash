@@ -13,6 +13,7 @@ the environment variables and settings file described in the documentation.
 
 - Reference recipes for Homebrew, Scoop and the AUR in `packaging/`.
 - Homebrew install through a tap: `brew install ilkerkeklik01/tap/yt-stash`.
+- Official support for Python 3.14, now declared in the classifiers and covered by the CI matrix.
 
 ## [1.0.1] - 2026-10-08
 

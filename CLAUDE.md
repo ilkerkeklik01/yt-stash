@@ -23,7 +23,7 @@ ruff format .                            # apply formatting
 
 Without an activated venv, call `.venv/bin/python`, `.venv/bin/pytest`, `.venv/bin/ruff` and `.venv/bin/yt-stash` directly.
 
-CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13, plus a smoke test `yt-stash --version && yt-stash video --help`. Code must stay compatible with Python 3.10 and Windows. Python 3.10 has no PEP 701: inside an f-string, use the other quote style (`f"{t('key')}"`).
+CI (`.github/workflows/ci.yml`) runs ruff on 3.12, and pytest on Ubuntu/macOS/Windows × Python 3.10/3.13/3.14, plus a smoke test `yt-stash --version && yt-stash video --help`. Code must stay compatible with Python 3.10 and Windows. Python 3.10 has no PEP 701: inside an f-string, use the other quote style (`f"{t('key')}"`).
 
 The version lives in `src/yt_stash/__init__.py` (read by hatchling). The project follows SemVer and Keep a Changelog: add a line under `## [Unreleased]` in `CHANGELOG.md` for every user-visible change; releases are cut as described in `docs/RELEASING.md` (tag `vX.Y.Z`, the release workflow publishes to PyPI).
 
